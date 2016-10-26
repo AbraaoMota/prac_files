@@ -69,15 +69,20 @@ def rotate(angle1, angle2):
 
 	print "Destination reached!"
 
+forty_cm_length = 11.6755
+ninety_deg_turn = 3.4875 
+left_wheel_strength_multiplier  = 1
+right_wheel_strength_multiplier = 1
 
-#rotate(11.58,11.58)
-#rotate(-3.69,3.69)
-#rotate(11.58,11.58)
-#rotate(-3.69,3.69)
-#rotate(11.58,11.58)
-#rotate(-3.69,3.69)
-#rotate(11.58,11.58)
-rotate(-3.69,3.69)
+rotate(right_wheel_strength_multiplier * forty_cm_length,  left_wheel_strength_multiplier * forty_cm_length)
+rotate(right_wheel_strength_multiplier * -ninety_deg_turn, left_wheel_strength_multiplier * ninety_deg_turn)
+rotate(right_wheel_strength_multiplier * forty_cm_length,  left_wheel_strength_multiplier * forty_cm_length)
+rotate(right_wheel_strength_multiplier * -ninety_deg_turn, left_wheel_strength_multiplier * ninety_deg_turn)
+rotate(right_wheel_strength_multiplier * forty_cm_length,  left_wheel_strength_multiplier * forty_cm_length)
+rotate(right_wheel_strength_multiplier * -ninety_deg_turn, left_wheel_strength_multiplier * ninety_deg_turn)
+rotate(right_wheel_strength_multiplier * forty_cm_length,  left_wheel_strength_multiplier * forty_cm_length)
+rotate(right_wheel_strength_multiplier * -ninety_deg_turn, left_wheel_strength_multiplier * ninety_deg_turn)
+
 
 interface.terminate()
 
