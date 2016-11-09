@@ -8,6 +8,11 @@ interface.initialize()
 NUMBER_OF_PARTICLES = 100
 particles = [(0, 0, 0, 0.01)]* NUMBER_OF_PARTICLES
 
+# Adjust if motors turn differently for the same angle.
+ANGLE_MULTIPLIER = 1
+ROTATION_RADIANS_MULTIPLIER= 2.2969
+NINETY_DEG_TURN = 3.6075
+
 motors = [0,1]
 
 interface.motorEnable(motors[0])
@@ -47,7 +52,25 @@ motorParams_1.pidParameters.K_d = k_d
 interface.setMotorAngleControllerParameters(motors[0],motorParams_0)
 interface.setMotorAngleControllerParameters(motors[1],motorParams_1)
 
-def rotate(angle1, angle2):
+unit_cm = math.pi/10.35
+
+def move(distance):
+	# Get the corresponding motor rotation in radians
+	_distance = distanceToRobotRadians(distance)
+
+	interface.increaseMotorAngleReferences(motors,[(_distance),(_distance)])
+	while not interface.motorAngleReferencesReached(motors) :
+		motorAngles = interface.getMotorAngles(motors)
+		if motorAngles :
+			print "Motor angles: ", motorAngles[0][0], ", ", motorAngles[1][0]
+		time.sleep(0.1)
+
+	print "Destination reached!"
+
+def rotate(angle):
+	_angle = normaliseAngle(angle)
+	angle1 = _angle * ROTATION_RADIANS_MULTIPLIER
+	angle2 = angle1 * ANGLE_MULTIPLIER * ROTATION_RADIANS_MULTIPLIER
 	interface.increaseMotorAngleReferences(motors,[angle1,angle2])
 	while not interface.motorAngleReferencesReached(motors) :
 		motorAngles = interface.getMotorAngles(motors)
@@ -58,10 +81,13 @@ def rotate(angle1, angle2):
 	print "Destination reached!"
 
 def getDistanceToTravel(currX, currY, givenX, givenY):
-	return math.sqrt((abs(givenX - currX))**2 + (abs(givenY - currY))**2)	
+	return math.sqrt((givenX - currX)**2 + (givenY - currY)**2)	
+
+forty_cm_length = 11.6755
+unit_cm_length = forty_cm_length/40
 
 def distanceToRobotRadians(distance):
-	radiansMultiplier = 1
+	radiansMultiplier = math.pi/10.35
 	return distance * radiansMultiplier
 
 def displayParticles():
@@ -109,20 +135,27 @@ def updateCurrentValues(particles):
 	return (xCounter, yCounter, thetaCounter)
 
 
-#forty_cm_length = 11.6755
-#ten_cm_length = forty_cm_length/4
-ninety_deg_turn = 3.6075
 currX = 0
 currY = 0
 currAngle = 0
-rotationRadiansMultiplier = 2.2969
 
 while True:
+	# Get the input.
 	givenX = float(input("Give an X co-ordinate for the robot to navigate to:\n"))
 	givenY = float(input("Give a Y co-ordinate:\n"))
+	# Calculate distance and angle
 	distance = getDistanceToTravel(currX, currY, givenX, givenY)
-	robotDistance = distanceToRobotRadians(distance) 
 	angle = (math.atan2(givenY-currY, givenX-currX)) - currAngle
+	# Rotate 
+	rotate(angle)
+	particles = (updateRotation(angle, particles))
+	(currX, currY, currAngle) = updateCurrentValues(particles)
+	# Move
+	move(distance)
+	particles = (updateMotion(distance, particles))
+	(currX, currY, currAngle) = updateCurrentValues(particles)
+
+interface.terminate()
 
 # Debugging printlines.
 
@@ -160,28 +193,30 @@ while True:
 #	print("angle after quad")
 #	print(angle)
 
-	angle = normaliseAngle(angle)
 
-	#angle *= rotationRadiansMultiplier
-	rotate(angle * rotationRadiansMultiplier, -angle * rotationRadiansMultiplier)
+#	print("-----DISTANCE--------")
+#	print(distance)
+#	print("-----//DISTANCE--------")
+#	distance = distanceToRobotRadians(distance)
+#	print("-----ROBOT DISTANCE--------")
+#	print(distance)
+#	print("-----//ROBOT DISTANCE--------")
 
-	#particles = (updateRotation(angle/rotationRadiansMultiplier, particles))
-	print("UPDATING PARTICLES WITH THE ANGLE:")
-	print(angle)
-	particles = (updateRotation(angle, particles))
-	(currX, currY, currAngle) = updateCurrentValues(particles)
-	print(str(particles))
-	rotate(robotDistance, robotDistance)
-	particles = (updateMotion(robotDistance, particles))
-        print(str(particles))
-	(currX, currY, currAngle) = updateCurrentValues(particles)
-	print("new currX is:")
-	print(currX)
-	print("new currY is:")
-	print(currY)
-	print("new currAngle is:")
-	print(currAngle)
+#	print("currX is:")
+#	print(currX)
+#	print("currY is:")
+#	print(currY)
+#	print("givenX is:")
+#	print(givenX)
+#	print("givenY is:")
+#	print(givenY)
+#	print("currAngle is:")
+#	print(currAngle)
 
-
-interface.terminate()
-
+#	print("-----DISTANCE--------")
+#	print(distance)
+#	print("-----//DISTANCE--------")
+#	_distance = distanceToRobotRadians(distance)
+#	print("-----ROBOT DISTANCE--------")
+#	print(_distance)
+#	print("-----//ROBOT DISTANCE--------")
