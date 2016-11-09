@@ -91,6 +91,7 @@ def updateRotation(angle, particles):
     return newParticles
 
 for i in range(0,4):
+    print "HI"
     for j in range(0,4):
         rotate(right_wheel_strength_multiplier * ten_cm_length,  left_wheel_strength_multiplier * ten_cm_length)
         particles.extend(updateMotion(10, particles))
