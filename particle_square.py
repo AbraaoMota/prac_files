@@ -61,22 +61,24 @@ def rotate(angle1, angle2):
 
 forty_cm_length = 11.6755
 ten_cm_length = forty_cm_length/4
-ninety_deg_turn = 3.6075 
+ninety_deg_turn = 3.6575 
 left_wheel_strength_multiplier  = 1
 right_wheel_strength_multiplier = 1
 
 
 def displayParticles():
-    print "drawParticles:" + str([(150 + 15 * x, 50 + 15 * y, theta, weight) for (x, y, theta, weight) in particles])
+    print "drawParticles:" + str([(150 + 15 * x, 720 - 15 * y, theta, weight) for (x, y, theta, weight) in particles])
 
 def updateMotion(distance, particles):
     print "updating motion"
     newParticles = []
     for (x, y, theta, weight) in particles[-100:]:
-        e = random.gauss(0,0.01)
-        f = random.gauss(0,0.01)
+        # To get correct sd we perform the following calc:
+        e = math.sqrt((distance/10) * math.pow(random.gauss(0,0.01),2))
+        f = math.sqrt((distance/10) * math.pow(random.gauss(0,0.01),2))
+        h = math.sqrt((distance/10) * math.pow(random.gauss(0,0.01),2))
         newX = x + (distance + e)*math.cos(theta)
-        newY = y + (distance + e)*math.sin(theta)
+        newY = y + (distance + h)*math.sin(theta)
         newTheta = theta + f
         newParticles.append((newX, newY, newTheta, weight))
     return newParticles
@@ -91,14 +93,13 @@ def updateRotation(angle, particles):
     return newParticles
 
 for i in range(0,4):
-    print "HI"
     for j in range(0,4):
-        rotate(right_wheel_strength_multiplier * ten_cm_length,  left_wheel_strength_multiplier * ten_cm_length)
-        particles.extend(updateMotion(10, particles))
+        rotate(right_wheel_strength_multiplier * ten_cm_length * 2,  left_wheel_strength_multiplier * ten_cm_length * 2)
+        particles.extend(updateMotion(20, particles))
         #particles = updateMotion(10, particles) # only the last set of particles is displayed
         displayParticles()
         time.sleep(0.25)
-    rotate(right_wheel_strength_multiplier * -ninety_deg_turn, left_wheel_strength_multiplier * ninety_deg_turn)
+    rotate(right_wheel_strength_multiplier * ninety_deg_turn, left_wheel_strength_multiplier * -ninety_deg_turn)
     time.sleep(0.25)
     # we use pi/2 because the degrees are in radians.
     particles.extend(updateRotation(math.pi/2, particles))
