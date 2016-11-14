@@ -11,7 +11,7 @@ particles = [(0, 0, 0, 0.01)]* NUMBER_OF_PARTICLES
 # Adjust if motors turn differently for the same angle.
 ANGLE_MULTIPLIER = 1
 ROTATION_RADIANS_MULTIPLIER= 2.2969
-NINETY_DEG_TURN = 3.6075
+NINETY_DEG_TURN = 3.77
 
 motors = [0,1]
 

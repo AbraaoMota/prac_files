@@ -1,5 +1,6 @@
 import brickpi
 import time
+import math
 
 interface=brickpi.Interface()
 interface.initialize()
@@ -70,7 +71,9 @@ def rotate(angle1, angle2):
 	print "Destination reached!"
 
 
-rotate(3.69,-3.69)
+ROTATE_90_LEFT = 3.77
+
+rotate(ROTATE_90_LEFT, -ROTATE_90_LEFT)
 
 interface.terminate()
 
