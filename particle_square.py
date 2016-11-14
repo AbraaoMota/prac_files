@@ -91,16 +91,16 @@ def updateRotation(angle, particles):
         newTheta = theta + angle + g
         newParticles.append((x, y, newTheta , weight ))
     return newParticles
-
+print "drawLine:" + str((0, 55, 200, 200))
 for i in range(0,4):
     for j in range(0,4):
-        rotate(right_wheel_strength_multiplier * ten_cm_length * 2,  left_wheel_strength_multiplier * ten_cm_length * 2)
-        particles.extend(updateMotion(20, particles))
+        #rotate(right_wheel_strength_multiplier * ten_cm_length,  left_wheel_strength_multiplier * ten_cm_length)
+        particles.extend(updateMotion(10, particles))
         #particles = updateMotion(10, particles) # only the last set of particles is displayed
         displayParticles()
-        time.sleep(0.25)
-    rotate(right_wheel_strength_multiplier * ninety_deg_turn, left_wheel_strength_multiplier * -ninety_deg_turn)
-    time.sleep(0.25)
+        #time.sleep(0.25)
+    #rotate(right_wheel_strength_multiplier * ninety_deg_turn, left_wheel_strength_multiplier * -ninety_deg_turn)
+    #time.sleep(0.25)
     # we use pi/2 because the degrees are in radians.
     particles.extend(updateRotation(math.pi/2, particles))
     #particles = updateRotation(math.pi/2, particles) # only the last set of particles is displayed

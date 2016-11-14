@@ -70,8 +70,8 @@ def move(distance):
 def rotate(angle):
 	_angle = normaliseAngle(angle)
 	angle1 = _angle * ROTATION_RADIANS_MULTIPLIER
-	angle2 = angle1 * ANGLE_MULTIPLIER * ROTATION_RADIANS_MULTIPLIER
-	interface.increaseMotorAngleReferences(motors,[angle1,angle2])
+	angle2 = (_angle * ROTATION_RADIANS_MULTIPLIER) * ANGLE_MULTIPLIER
+	interface.increaseMotorAngleReferences(motors,[angle1,-angle2])
 	while not interface.motorAngleReferencesReached(motors) :
 		motorAngles = interface.getMotorAngles(motors)
 		if motorAngles :
@@ -97,9 +97,9 @@ def normaliseAngle(angle):
 	if angle > math.pi :
 		angle = -(2 * math.pi) + angle
 	elif angle < -math.pi :
-		angle = (2 * math.pi) + angle 
+		angle = (2 * math.pi) + angle
 
-	return angle 
+	return angle
 
 def updateMotion(distance, particles):
     print "updating motion"
@@ -109,31 +109,38 @@ def updateMotion(distance, particles):
         f = random.gauss(0,0.01)
         newX = x + (distance + e)*math.cos(theta)
         newY = y + (distance + e)*math.sin(theta)
-        newTheta = theta + f 
-	newTheta = normaliseAngle(newTheta)
+        newTheta = theta + f
         newParticles.append((newX, newY, newTheta, weight))
     return newParticles
 
 def updateRotation(angle, particles):
-    print "updating Rotation"
+    print("updating Rotation by "  + str(angle * 180/math.pi))
     newParticles = []
     for (x, y, theta, weight) in particles:
         g = random.gauss(0,0.025)
         newTheta = (theta + angle + g)
-	newTheta = normaliseAngle(newTheta)
-        newParticles.append((x, y, newTheta , weight ))
+        newParticles.append((x, y, newTheta , weight))
     return newParticles
 
 def updateCurrentValues(particles):
 	xCounter = 0
 	yCounter = 0
 	thetaCounter = 0
+	# Summing up.
 	for (x, y, theta, weight) in particles:
-		xCounter += x * weight
-		yCounter += y * weight
-		thetaCounter += theta * weight
-	return (xCounter, yCounter, thetaCounter)
+		xCounter += x 
+		yCounter += y 
+		thetaCounter += theta
+	# Dividing by total number.
+	xCounter *= weight
+	yCounter *= weight
+	thetaCounter *= weight
 
+	print("This is the angle the particles think they are at: " + str(thetaCounter * 180/math.pi))
+	# Normalise angle so it's between pi and -pi
+	thetaCounter = normaliseAngle(thetaCounter)
+
+	return (xCounter, yCounter, thetaCounter)
 
 currX = 0
 currY = 0
@@ -146,7 +153,11 @@ while True:
 	# Calculate distance and angle
 	distance = getDistanceToTravel(currX, currY, givenX, givenY)
 	angle = (math.atan2(givenY-currY, givenX-currX)) - currAngle
-	# Rotate 
+	angle = normaliseAngle(angle)
+
+        print("angle: " + str(angle * (180/math.pi)))
+
+	# Rotate
 	rotate(angle)
 	particles = (updateRotation(angle, particles))
 	(currX, currY, currAngle) = updateCurrentValues(particles)
