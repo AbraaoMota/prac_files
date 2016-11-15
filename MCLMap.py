@@ -239,7 +239,7 @@ class Particles:
             weight *= self.calculate_likelihood(x, y, theta, sonar)
             newParticles.append((x,y,theta,weight))
         self.data = newParticles
-    
+
     def updateR(self, angle):
         newParticles = []
         for (x, y, theta, weight) in self.data:
@@ -247,7 +247,31 @@ class Particles:
             newTheta = theta + angle + g
             newParticles.append((x, y, newTheta, weight))
         self.data = newParticles
-            
+
+    def normalise(self):
+	sum          = 0
+  	newParticles = []
+
+	for(x, y, theta, weight) in self.data:
+		sum += weight
+	for particle in self.data:
+		newParticles.append(x, y, theta, particle.weight / sum)
+
+	self.data = newParticles
+
+    def resample(self):
+	lotteryTicketParticles = []
+	result                 = []
+
+	for (x1, y1, theta1, weight1) in self.data:
+		for i in range(0, weight1 * NUMBER_OF_PARTICLES):
+			lotteryTicketParticles.append(x1, y1, theta1, weight1)
+	for j in range(0, NUMBER_OF_PARTICLES):
+		randomIndex = random.randint(0, len(lotteryTicketParticles))
+    		result.append(lotteryTicketParticles[randomIndex])
+
+        self.data = result
+
     def draw(self):
         canvas.drawParticles(self.data);
 
@@ -273,9 +297,6 @@ mymap.add_wall((210,84,210,0));     # g
 mymap.add_wall((210,0,0,0));        # h
 mymap.draw();
 
-
-
-
 particles = Particles();
 
 t = 0;
@@ -298,6 +319,8 @@ for i in range(0,1):
         #rotate(right_wheel_strength_multiplier * ten_cm_length,  left_wheel_strength_multiplier * ten_cm_length)
         particles.updateM(10)
         particles.updateParticles()
+        particles.normalise()
+        particles.resample()
         #particles = updateMotion(10, particles) # only the last set of particles is displayed
         particles.draw()
         time.sleep(0.25)
