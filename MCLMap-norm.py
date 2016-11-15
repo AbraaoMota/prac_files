@@ -8,7 +8,7 @@ import math
 import brickpi
 import numpy as np
 import math
-
+import random
 def radians(d):
     return math.radians(d)
 
@@ -93,6 +93,7 @@ def calcTheta():
 def calculate_likelihood(float x, float y, float theta, float z):
     #returns likelihood based on position and sonar measurement
     (wall, depthExp) = findWall((x, y, theta))
+    likelihood = math.pow(math.epsilon)
     #calculate difference (sonar compensates for 2cm addition)
     # If incidence angle is too big for sensible readings, skip update
     
@@ -123,14 +124,33 @@ def findWall(position):
                     wall = (x1, y1, x2, y2)
     return (wall, minDist)
 
-def normalize(particles):
-	sum = 0
-        newParticles = []
+def normalise(particles):
+	sum          = 0
+  	newParticles = []
+
 	for(x, y, theta, weight) in particles:
 		sum += weight
 	for particle in particles:
-		newParticles.append(x, y, theta, particle.weight / sum)
-   return newParticles
+		newParticles.append(x, y, theta, particle.weight / sum) 
+	
+	return newParticles
+
+def resample(newParticles):
+	lotteryTicketParticles = []
+	result                 = []
+
+	for (x1, y1, theta1, weight1) in newParticles:
+		for i in range(0, weight1 * NUMBER_OF_PARTICLES):
+			lotteryTicketParticles.append(x1, y1, theta1, weight1)
+	for j in range(0, NUMBER_OF_PARTICLES):
+		randomIndex = random.randint(0, len(lotteryTicketParticles))
+    		result.append(lotteryTicketParticles[randomIndex])
+	print result
+	return result
+	
+				
+						
+	
 
 # A Canvas class for drawing a map and particles:
 #     - it takes care of a proper scaling and coordinate transformation between
