@@ -12,10 +12,16 @@ import math
 def radians(d):
     return math.radians(d)
 
+def cos(d):
+    return math.cos(d)
+
+def sin(d):
+    return math.sin(d)
+
 range1 = lambda start, end: range(start, end+1)
 
 NUMBER_OF_PARTICLES = 100
-'''interface=brickpi.Interface()
+interface=brickpi.Interface()
 interface.initialize()
 
 
@@ -60,7 +66,6 @@ motorParams_1.pidParameters.K_d = k_d
 
 interface.setMotorAngleControllerParameters(motors[0],motorParams_0)
 interface.setMotorAngleControllerParameters(motors[1],motorParams_1)
-'''
 
 forty_cm_length = 11.6755
 ten_cm_length = forty_cm_length/4
@@ -92,48 +97,6 @@ def calcW():
 def calcTheta():
     return random.randint(0,360);
 
-def calculate_fwd_distance(float x, float y, wall):
-    (Ax, Ay, Bx, By) = wall
-    m = (((By - Ay) * (Ax - x) - (Bx - Ax ) * (Ay - y))/((By - Ay ) * cos(theta) - (Bx - Ax ) * sin(theta)))
-    xWall = x + m*cos(theta)
-    yWall = y + m*sin(theta)
-    return ((xWall, yWall), m)
-
-
-def calculate_likelihood(float x, float y, float theta, float z):
-    #returns likelihood based on position and sonar measurement
-    (wall, m) = findWall((x, y, theta))
-    ((xWall, yWall), mWall) = calculate_fwd_distance(x, y, wall)
-    #Check which one works between m and mWall (to compare with z)
-    #calculate difference (sonar compensates for 2cm addition)
-    # If incidence angle is too big for sensible readings, skip update
-    
-
-def findWall(position):
-    (x, y, theta) = position
-    minDist = 1049
-    for (x1, y1, x2, y2) in mymap.walls:
-        if theta >= radians(315) or theta < radians(45):
-            if x < x1 and y in range1(*sorted((y1, y2))) and x1 == x2:
-                if(x1-x < minDist):
-                    minDist = x1-x
-                    wall = (x1, y1, x2, y2)
-        if theta >= radians(45) and theta < radians(135):
-            if y < y1 and x in range1(*sorted((x1, x2))) and y1 == y2:
-                if(y1-y < minDist):
-                    minDist = y1-y
-                    wall = (x1, y1, x2, y2)
-        if theta >= radians(135) and theta < radians(225):
-            if x > x1 and y in range1(*sorted((y1, y2))) and x1 == x2:
-                if(x-x1 < minDist):
-                    minDist = x-x1
-                    wall = (x1, y1, x2, y2)
-        if theta >= radians(225) and theta < radians(315):
-            if y > y1 and x in range1(*sorted((x1, x2))) and y1 == y2:
-                if(y-y1 < minDist):
-                    minDist = y-y1
-                    wall = (x1, y1, x2, y2)
-    return (wall, minDist)
 
 # A Canvas class for drawing a map and particles:
 #     - it takes care of a proper scaling and coordinate transformation between
@@ -153,7 +116,6 @@ class Canvas:
         print "drawLine:" + str((x1,y1,x2,y2))
 
     def drawParticles(self,data):
-        print(str(mymap.walls))
         display = [(self.__screenX(d[0]),self.__screenY(d[1])) + d[2:] for d in data];
         print "drawParticles:" + str(display);
 
@@ -201,12 +163,86 @@ class Particles:
             newParticles.append((newX, newY, newTheta, weight))
         self.data = newParticles    
         #self.data = [(calcX(), calcY(), calcTheta(), calcW()) for i in range(self.n)];
-        
-        
-    def updateR(self, angle):
-        print "updating rotation particles"
+    
+    # After each rotation, take a sonar measurement
+    # Update all particles by calling likelihood on each
+
+    def calculate_fwd_distance(self, x, y, theta, wall):
+        (Ax, Ay, Bx, By) = wall
+        m = (((By - Ay) * (Ax - x) - (Bx - Ax ) * (Ay - y))/((By - Ay ) * cos(theta) - (Bx - Ax ) * sin(theta)))
+        #xWall = x + m*cos(theta)
+        #yWall = y + m*sin(theta)
+        return m
+
+    #returns likelihood based on position and sonar measurement
+    def calculate_likelihood(self, x, y, theta, z):
+        # Find the wall closest to particle
+        # Calculate the distance to wall.
+        m = self.calculate_fwd_distance(x, y, theta, self.findWall((x, y, theta)))
+        #Check which one works between m and mWall (to compare with z)
+        #Calculate difference (sonar compensates for 2cm addition)
+        #If incidence angle is too big for sensible readings, skip update
+        d = z - m - 2 
+        gauss = self.gaussian_estimate(d)
+        return gauss
+
+
+    def gaussian_estimate(self, d):
+        # Random pick for now
+        sd = 0.025
+        # Each particle gets at least 0.5% chance of occurring
+        const = 0.005
+        return math.exp(-(d**2)/(2 * sd**2)) + const
+
+    def findWall(self, position):
+        (x, y, theta) = position
+        minDist = 1049
+        wall = mymap.walls[0]
+        for (x1, y1, x2, y2) in mymap.walls:
+            if theta >= radians(315) or theta < radians(45):
+                if x < x1 and y in range1(*sorted((y1, y2))) and x1 == x2:
+                    if(x1-x < minDist):
+                        minDist = x1-x
+                        wall = (x1, y1, x2, y2)
+            if theta >= radians(45) and theta < radians(135):
+                if y < y1 and x in range1(*sorted((x1, x2))) and y1 == y2:
+                    if(y1-y < minDist):
+                        minDist = y1-y
+                        wall = (x1, y1, x2, y2)
+            if theta >= radians(135) and theta < radians(225):
+                if x > x1 and y in range1(*sorted((y1, y2))) and x1 == x2:
+                    if(x-x1 < minDist):
+                        minDist = x-x1
+                        wall = (x1, y1, x2, y2)
+            if theta >= radians(225) and theta < radians(315):
+                if y > y1 and x in range1(*sorted((x1, x2))) and y1 == y2:
+                    if(y-y1 < minDist):
+                        minDist = y-y1
+                        wall = (x1, y1, x2, y2)
+        return wall
+
+    
+    def takeSonarM(self):
+        sonarAvg = 0
+        for i in range(0, 3):
+            usReading = interface.getSensorValue(sonarPort)
+            if usReading :
+                sonarAvg += usReading[0]
+        return sonarAvg/3
+
+    def updateParticles(self):
+        # Take sonar measurement:
+        sonar = self.takeSonarM()
         newParticles = []
-        for (x, y, theta, weight) in self.data[-100:]:
+        # For each particle, calculate likelihood and add it to the new Particles with updated weight
+        for (x, y, theta, weight) in self.data:
+            weight *= self.calculate_likelihood(x, y, theta, sonar)
+            newParticles.append((x,y,theta,weight))
+        self.data = newParticles
+    
+    def updateR(self, angle):
+        newParticles = []
+        for (x, y, theta, weight) in self.data:
             g = random.gauss(0,0.025)
             newTheta = theta + angle + g
             newParticles.append((x, y, newTheta, weight))
@@ -243,51 +279,34 @@ mymap.draw();
 particles = Particles();
 
 t = 0;
-print "updating: "
+#print "updating: "
 #particles.updateM(20);
 #particles.draw();
-print(findWall((84,30,radians(0))))
-print(findWall((84,30,radians(90))))
-print(findWall((84,30,radians(180))))
-print(findWall((84,30,radians(270))))
-print(findWall((42,140,radians(0))))
-print(findWall((100, 140, radians(180))))
+#print(findWall((84,30,radians(0))))
+#print(findWall((84,30,radians(90))))
+#print(findWall((84,30,radians(180))))
+#print(findWall((84,30,radians(270))))
+#print(findWall((42,140,radians(0))))
+#print(findWall((100, 140, radians(180))))
 t += 0.05;
 time.sleep(0.05);
 
-# After each rotation, take a sonar measurement
-# Update all particles by calling likelihood on each
 
-def takeSonarM():
-    sonarAvg = 0
-    for i in range(0, 3):
-        usReading = interface.getSensorValue(sonarPort)
-        if usReading :
-            sonarAvg += usReading[0]
-    return sonarAvg/3
 
-def updateParticles(particles):
-    # Take sonar measurement:
-    sonar = takeSonarM()
-    newParticles = []
-    # For each particle, calculate likelihood and add it to the new Particles with updated weight
-    for (x, y, theta, weight) in particles:
-        weight *= calculate_likelihood(x, y, theta, sonar)
-        newParticles.append((x,y,theta,weight))
-    particles = newParticles
-
-for i in range(0,4):
-    for j in range(0,4):
+for i in range(0,1):
+    for j in range(0,1):
         #rotate(right_wheel_strength_multiplier * ten_cm_length,  left_wheel_strength_multiplier * ten_cm_length)
-        particles = updateMotion(10, particles)
+        particles.updateM(10)
+        particles.updateParticles()
         #particles = updateMotion(10, particles) # only the last set of particles is displayed
-        displayParticles()
-        #time.sleep(0.25)
+        particles.draw()
+        time.sleep(0.25)
     #rotate(right_wheel_strength_multiplier * ninety_deg_turn, left_wheel_strength_multiplier * -ninety_deg_turn)
-    #time.sleep(0.25)
+    time.sleep(0.25)
     # we use pi/2 because the degrees are in radians.
-    particles.extend(updateRotation(math.pi/2, particles))
+    particles.updateR(math.pi/2)
+    particles.updateParticles()
     #particles = updateRotation(math.pi/2, particles) # only the last set of particles is displayed
-    displayParticles()
+    particles.draw()
     
 #interface.terminate()
