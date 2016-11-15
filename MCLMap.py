@@ -21,6 +21,12 @@ def sin(d):
 range1 = lambda start, end: range(start, end+1)
 
 NUMBER_OF_PARTICLES = 100
+# Adjust if motors turn differently for the same angle.
+ANGLE_MULTIPLIER = 1
+ROTATION_RADIANS_MULTIPLIER= 2.2969
+NINETY_DEG_TURN = 3.77
+
+
 interface=brickpi.Interface()
 interface.initialize()
 
@@ -75,6 +81,9 @@ right_wheel_strength_multiplier = 1
 
 # Definitions of waypoints
 w1 = (84, 30)
+# 96
+# x=1.84
+
 w2 = (180, 30)
 w3 = (180, 54)
 w4 = (138, 54)
@@ -83,20 +92,6 @@ w6 = (114, 168)
 w7 = (114, 84)
 w8 = (84, 84)
 w9 = (84, 30)
-
-# Functions to generate some dummy particles data:
-def calcX():
-    return random.gauss(80,3) + 70*(math.sin(t)); # in cm
-
-def calcY():
-    return random.gauss(70,3) + 60*(math.sin(2*t)); # in cm
-
-def calcW():
-    return random.random();
-
-def calcTheta():
-    return random.randint(0,360);
-
 
 # A Canvas class for drawing a map and particles:
 #     - it takes care of a proper scaling and coordinate transformation between
@@ -116,7 +111,7 @@ class Canvas:
         print "drawLine:" + str((x1,y1,x2,y2))
 
     def drawParticles(self,data):
-        display = [(self.__screenX(d[0]),self.__screenY(d[1])) + d[2:] for d in data];
+        display = [(self.__screenX(d[0]),self.__screenY(d[1]), d[2], d[3] * 100) for d in data];
         print "drawParticles:" + str(display);
 
     def __screenX(self,x):
@@ -129,9 +124,13 @@ class Canvas:
 class Map:
     def __init__(self):
         self.walls = [];
+        self.WP = [];
 
     def add_wall(self,wall):
         self.walls.append(wall);
+        
+    def add_WP(self, x, y):
+        self.WP.append(x+y);
 
     def clear(self):
         self.walls = [];
@@ -139,12 +138,62 @@ class Map:
     def draw(self):
         for wall in self.walls:
             canvas.drawLine(wall);
+    def drawWP(self):
+        for wayp in self.WP:
+            canvas.drawLine(wayp);
+            
+            
+def getDistanceToTravel(currX, currY, givenX, givenY):
+    return math.sqrt((givenX - currX)**2 + (givenY - currY)**2)  
+            
+    
+    
+def normaliseAngle(angle):
+    if angle > math.pi : 
+        angle = -(2 * math.pi) + angle
+    elif angle < -math.pi :
+        angle = (2 * math.pi) + angle
 
+    return angle
+
+def distanceToRobotRadians(distance):
+    radiansMultiplier = math.pi/10.35
+    return distance * radiansMultiplier
+
+def rotate(angle):
+    _angle = normaliseAngle(angle)
+    angle1 = _angle * ROTATION_RADIANS_MULTIPLIER
+    angle2 = (_angle * ROTATION_RADIANS_MULTIPLIER) * ANGLE_MULTIPLIER
+    interface.increaseMotorAngleReferences(motors,[angle1,-angle2])
+    while not interface.motorAngleReferencesReached(motors) :
+        motorAngles = interface.getMotorAngles(motors)
+        #if motorAngles :
+            #print "Motor angles: ", motorAngles[0][0], ", ", motorAngles[1][0]
+        time.sleep(0.1)
+
+    print "Destination reached!"
+
+    
+        
+def move(distance):
+    # Get the corresponding motor rotation in radians
+    _distance = distanceToRobotRadians(distance)
+    interface.increaseMotorAngleReferences(motors,[(_distance),(_distance)])
+
+    while not interface.motorAngleReferencesReached(motors) :
+        motorAngles = interface.getMotorAngles(motors)
+        #if motorAngles :
+            #print "Motor angles: ", motorAngles[0][0], ", ", motorAngles[1][0]
+        time.sleep(0.1)
+    
+    print "Destination reached!"
+    
+            
 # Simple Particles set
 class Particles:
     def __init__(self):
         self.n = 100;    
-        self.data = [(w1[0], w1[1], 0, 0.5)]*NUMBER_OF_PARTICLES;
+        self.data = [(w1[0], w1[1], 0, 0.01)]*NUMBER_OF_PARTICLES;
 
     def updateM(self, distance):
         print "updating motion particles"
@@ -168,8 +217,9 @@ class Particles:
     # Update all particles by calling likelihood on each
 
     def calculate_fwd_distance(self, x, y, theta, wall):
+        #PLEASE CHECK FORMULA -> slides
         (Ax, Ay, Bx, By) = wall
-        m = (((By - Ay) * (Ax - x) - (Bx - Ax ) * (Ay - y))/((By - Ay ) * cos(theta) - (Bx - Ax ) * sin(theta)))
+        m = (abs(By - Ay) * abs(Ax - x) - abs(Bx - Ax) * abs(Ay - y))/(abs(By - Ay) * cos(theta) - abs(Bx - Ax) * sin(theta))
         #xWall = x + m*cos(theta)
         #yWall = y + m*sin(theta)
         return m
@@ -178,24 +228,61 @@ class Particles:
     def calculate_likelihood(self, x, y, theta, z):
         # Find the wall closest to particle
         # Calculate the distance to wall.
-        m = self.calculate_fwd_distance(x, y, theta, self.findWall((x, y, theta)))
+        (wall, minD) = self.findWall((x, y, theta))
+        m = self.calculate_fwd_distance(x, y, theta, wall)
+        #print("wall and m: " + str(wall) + str(m))
         #Check which one works between m and mWall (to compare with z)
         #Calculate difference (sonar compensates for 2cm addition)
         #If incidence angle is too big for sensible readings, skip update
-        d = z - m - 2 
-        gauss = self.gaussian_estimate(d)
+        d = z - m + 2
+        if(m > 150 or m < 10):
+            gauss = 1
+        else:
+            gauss = self.gaussian_estimate(d)
         return gauss
+    
+    #forty_cm_length = 11.6755
+    #unit_cm_length = forty_cm_length/40
+
+
+    def displayParticles():
+        print "drawParticles:" + str([(150 + 15 * x, 50 + 15 * y, theta, weight) for (x, y, theta, weight) in particles])
+
+
+    def updateCurrentValues(self):
+        xCounter = 0
+        yCounter = 0
+        thetaCounter = 0
+        # Summing up.
+        for (x, y, theta, weight) in self.data:
+            xCounter += x 
+            yCounter += y
+            thetaCounter += theta
+            
+        xCounter /= NUMBER_OF_PARTICLES
+        yCounter /= NUMBER_OF_PARTICLES
+        thetaCounter /= NUMBER_OF_PARTICLES
+        
+        #print("This is the angle the particles think they are at: " + str(thetaCounter * 180/math.pi))
+#        print("This is the x and the y where the particles think they are at: " + str(x) + ", " + str(y)) # Normalise angle so it's between pi and -pi
+        thetaCounter = normaliseAngle(thetaCounter)
+        print("This is the angle the particles think they are at after normalising: " + str(thetaCounter * 180/math.pi))
+
+        return (xCounter, yCounter, thetaCounter)
 
 
     def gaussian_estimate(self, d):
         # Random pick for now
-        sd = 0.025
+        #sd = 0.025
+        sd = 3
         # Each particle gets at least 0.5% chance of occurring
         const = 0.005
         return math.exp(-(d**2)/(2 * sd**2)) + const
 
     def findWall(self, position):
         (x, y, theta) = position
+        y = int(y)
+        x = int(x)
         minDist = 1049
         wall = mymap.walls[0]
         for (x1, y1, x2, y2) in mymap.walls:
@@ -219,7 +306,7 @@ class Particles:
                     if(y-y1 < minDist):
                         minDist = y-y1
                         wall = (x1, y1, x2, y2)
-        return wall
+        return (wall, minDist)
 
     
     def takeSonarM(self):
@@ -233,6 +320,7 @@ class Particles:
     def updateParticles(self):
         # Take sonar measurement:
         sonar = self.takeSonarM()
+        print("I HAVE TAKEN SONAR: " + str(sonar))
         newParticles = []
         # For each particle, calculate likelihood and add it to the new Particles with updated weight
         for (x, y, theta, weight) in self.data:
@@ -249,27 +337,28 @@ class Particles:
         self.data = newParticles
 
     def normalise(self):
-	sum          = 0
-  	newParticles = []
+        sum = 0
+        newParticles = []
 
-	for(x, y, theta, weight) in self.data:
-		sum += weight
-	for particle in self.data:
-		newParticles.append(x, y, theta, particle.weight / sum)
+        for(x, y, theta, weight) in self.data:
+            sum += weight
+        for (x, y, theta, weight) in self.data:
+            newParticles.append((x, y, theta, weight / sum))
 
-	self.data = newParticles
+        self.data = newParticles
 
     def resample(self):
-	lotteryTicketParticles = []
-	result                 = []
-
-	for (x1, y1, theta1, weight1) in self.data:
-		for i in range(0, weight1 * NUMBER_OF_PARTICLES):
-			lotteryTicketParticles.append(x1, y1, theta1, weight1)
-	for j in range(0, NUMBER_OF_PARTICLES):
-		randomIndex = random.randint(0, len(lotteryTicketParticles))
-    		result.append(lotteryTicketParticles[randomIndex])
-
+        lotteryTicketParticles = []
+        result                 = []
+#        print(self.data)
+        for (x1, y1, theta1, weight1) in self.data:
+            for i in range(0, int(round(weight1 * NUMBER_OF_PARTICLES))):
+                lotteryTicketParticles.append((x1, y1, theta1, weight1))
+        for j in range(0, NUMBER_OF_PARTICLES):
+            randomIndex = random.randint(0, len(lotteryTicketParticles) - 1)
+            (newX, newY, newTheta, newWeight) = lotteryTicketParticles[randomIndex]
+            result.append((newX, newY, newTheta, newWeight))
+#        print(result)
         self.data = result
 
     def draw(self):
@@ -297,39 +386,113 @@ mymap.add_wall((210,84,210,0));     # g
 mymap.add_wall((210,0,0,0));        # h
 mymap.draw();
 
+
+mymap.add_WP(w1, w2)
+mymap.add_WP(w2, w3)
+mymap.add_WP(w3, w4)
+mymap.add_WP(w4, w5)
+mymap.add_WP(w5, w6)
+mymap.add_WP(w6, w7)
+mymap.add_WP(w7, w8)
+mymap.add_WP(w8, w9)
+mymap.drawWP()
+
 particles = Particles();
 
-t = 0;
-#print "updating: "
-#particles.updateM(20);
-#particles.draw();
-#print(findWall((84,30,radians(0))))
-#print(findWall((84,30,radians(90))))
-#print(findWall((84,30,radians(180))))
-#print(findWall((84,30,radians(270))))
-#print(findWall((42,140,radians(0))))
-#print(findWall((100, 140, radians(180))))
-t += 0.05;
-time.sleep(0.05);
+# Definitions of waypoints
+#w1 = (84, 30)
+#w2 = (180, 30)
+#w3 = (180, 54)
+#w4 = (138, 54)
+#w5 = (138, 168)
+#w6 = (114, 168)
+#w7 = (114, 84)
+#w8 = (84, 84)
+#w9 = (84, 30)
 
+waypoints = [w2, w3, w4, w5, w6, w7, w8, w9]
 
+currX = w1[0]
+currY = w1[1]
+currAngle = 0
 
-for i in range(0,1):
-    for j in range(0,1):
-        #rotate(right_wheel_strength_multiplier * ten_cm_length,  left_wheel_strength_multiplier * ten_cm_length)
-        particles.updateM(10)
+for (givenX, givenY) in waypoints:
+    # Calculate distance and angle
+    distance = getDistanceToTravel(currX, currY, givenX, givenY)
+    angle = (math.atan2(givenY-currY, givenX-currX)) - currAngle
+    angle = normaliseAngle(angle)
+
+    print("angle to turn: " + str(angle * (180/math.pi)))
+
+    # Rotate
+    print("currX is:")
+    print(currX)
+    print("currY is:")
+    print(currY)
+    print("givenX is:")
+    print(givenX)
+    print("givenY is:")
+    print(givenY)
+    print("currAngle is:")
+    print(currAngle)
+    rotate(angle)
+    particles.updateR(angle)
+    particles.updateParticles()
+    particles.normalise()
+    particles.resample()
+    (currX, currY, currAngle) = particles.updateCurrentValues()
+    particles.draw()
+    # Move in 20 cm steps.
+    while (distance > 20):
+        move(20)
+        distance -= 20
+        particles.updateM(20)
         particles.updateParticles()
         particles.normalise()
         particles.resample()
-        #particles = updateMotion(10, particles) # only the last set of particles is displayed
+        (currX, currY, currAngle) = particles.updateCurrentValues()
+        #print(str(currX) + " " + str(currY)+ " " + str(currAngle) + "PRINTING CURRENT")
         particles.draw()
+        #print("Finished drawing particles")
         time.sleep(0.25)
-    #rotate(right_wheel_strength_multiplier * ninety_deg_turn, left_wheel_strength_multiplier * -ninety_deg_turn)
-    time.sleep(0.25)
-    # we use pi/2 because the degrees are in radians.
-    particles.updateR(math.pi/2)
+        #print(particles.data)
+    
+    move(distance)
+    particles.updateM(distance)
     particles.updateParticles()
-    #particles = updateRotation(math.pi/2, particles) # only the last set of particles is displayed
+    particles.normalise()
+    particles.resample()
+    (currX, currY, currAngle) = particles.updateCurrentValues()
     particles.draw()
+    #print("Finished drawing particles")
+    time.sleep(0.25)
+    #print(particles.data)
+
+
+#for i in range(0,1):
+#    for j in range(0,1):
+#        #rotate(right_wheel_strength_multiplier * ten_cm_length,  left_wheel_strength_multiplier * ten_cm_length)
+#        particles.updateM(20)
+#        particles.updateParticles()
+#        particles.normalise()
+#        particles.resample()
+#        #particles = updateMotion(10, particles) # only the last set of particles is displayed
+#        particles.draw()
+#        print("Finished drawing particles")
+#        time.sleep(0.25)
+#    #rotate(right_wheel_strength_multiplier * ninety_deg_turn, left_wheel_strength_multiplier * -ninety_deg_turn)
+#    # we use pi/2 because the degrees are in radians.
+#    particles.updateR(3*math.pi/2)
+#    particles.updateParticles()
+#    particles.normalise()
+#    particles.resample()
+#    particles.updateM(20)
+#    particles.updateParticles()
+#    particles.normalise()
+#    particles.resample()
+#    print("Finished drawing particles")
+#    #particles = updateRotation(math.pi/2, particles) # only the last set of particles is displayed
+#    particles.draw()
+#    time.sleep(0.25)
     
 #interface.terminate()

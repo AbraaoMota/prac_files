@@ -6,7 +6,18 @@ import math
 interface=brickpi.Interface()
 interface.initialize()
 NUMBER_OF_PARTICLES = 100
-particles = [(0, 0, 0, 0.01)]* NUMBER_OF_PARTICLES
+
+w1 = (84, 30)
+w2 = (180, 30)
+w3 = (180, 54)
+w4 = (138, 54)
+w5 = (138, 168)
+w6 = (114, 168)
+w7 = (114, 84)
+w8 = (84, 84)
+w9 = (84, 30)
+
+particles = [(w1[0], w1[1], 0, 0.01)]* NUMBER_OF_PARTICLES
 
 # Adjust if motors turn differently for the same angle.
 ANGLE_MULTIPLIER = 1
@@ -74,8 +85,6 @@ def rotate(angle):
 	interface.increaseMotorAngleReferences(motors,[angle1,-angle2])
 	while not interface.motorAngleReferencesReached(motors) :
 		motorAngles = interface.getMotorAngles(motors)
-		if motorAngles :
-			print "Motor angles: ", motorAngles[0][0], ", ", motorAngles[1][0]
 		time.sleep(0.1)
 
 	print "Destination reached!"
@@ -114,7 +123,7 @@ def updateMotion(distance, particles):
     return newParticles
 
 def updateRotation(angle, particles):
-    print("updating Rotation by "  + str(angle * 180/math.pi))
+    #print("updating Rotation by "  + str(angle * 180/math.pi))
     newParticles = []
     for (x, y, theta, weight) in particles:
         g = random.gauss(0,0.025)
@@ -142,28 +151,37 @@ def updateCurrentValues(particles):
 
 	return (xCounter, yCounter, thetaCounter)
 
-currX = 0
-currY = 0
+currX = w1[0] 
+currY = w1[1]
 currAngle = 0
 
-while True:
-	# Get the input.
-	givenX = float(input("Give an X co-ordinate for the robot to navigate to:\n"))
-	givenY = float(input("Give a Y co-ordinate:\n"))
+waypoints = [w2, w3, w4, w5, w6, w7, w8, w9]
+
+for (givenX, givenY) in waypoints:
 	# Calculate distance and angle
 	distance = getDistanceToTravel(currX, currY, givenX, givenY)
 	angle = (math.atan2(givenY-currY, givenX-currX)) - currAngle
 	angle = normaliseAngle(angle)
 
-        print("angle: " + str(angle * (180/math.pi)))
+	print("currX is:")
+	print(currX)
+	print("currY is:")
+	print(currY)
+	print("givenX is:")
+	print(givenX)
+	print("givenY is:")
+	print(givenY)
+	print("currAngle is:")
+	print(currAngle)
 
+        print("angle: " + str(angle * (180/math.pi)))
 	# Rotate
 	rotate(angle)
-	particles = (updateRotation(angle, particles))
+	particles = updateRotation(angle, particles)
 	(currX, currY, currAngle) = updateCurrentValues(particles)
 	# Move
 	move(distance)
-	particles = (updateMotion(distance, particles))
+	particles = updateMotion(distance, particles)
 	(currX, currY, currAngle) = updateCurrentValues(particles)
 
 interface.terminate()
