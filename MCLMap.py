@@ -222,7 +222,7 @@ class Particles:
         m = (abs(By - Ay) * abs(Ax - x) - abs(Bx - Ax) * abs(Ay - y))/(abs(By - Ay) * cos(theta) - abs(Bx - Ax) * sin(theta))
         #xWall = x + m*cos(theta)
         #yWall = y + m*sin(theta)
-        return m
+        return abs(m)
 
     #returns likelihood based on position and sonar measurement
     def calculate_likelihood(self, x, y, theta, z):
@@ -282,7 +282,7 @@ class Particles:
         #sd = 0.025
         sd = 3
         # Each particle gets at least 0.5% chance of occurring
-        const = 0.0005
+        const = 0.0001
         return math.exp(-(d**2)/(2 * sd**2)) + const
 
     def findWall(self, position):
