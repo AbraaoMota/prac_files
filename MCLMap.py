@@ -203,6 +203,7 @@ class Particles:
             rne = random.gauss(0,0.5)
             rnf = random.gauss(0,0.02)
             rnh = random.gauss(0,0.01)
+
             e = math.sqrt((distance/10) * math.pow(rne,2))
             f = math.sqrt((distance/10) * math.pow(rnf,2))
             h = math.sqrt((distance/10) * math.pow(rnh,2))
@@ -217,7 +218,6 @@ class Particles:
     # Update all particles by calling likelihood on each
 
     def calculate_fwd_distance(self, x, y, theta, wall):
-        #PLEASE CHECK FORMULA -> slides
         (Ax, Ay, Bx, By) = wall
         m = (abs(By - Ay) * abs(Ax - x) - abs(Bx - Ax) * abs(Ay - y))/(abs(By - Ay) * cos(theta) - abs(Bx - Ax) * sin(theta))
         #xWall = x + m*cos(theta)
@@ -231,11 +231,17 @@ class Particles:
         (wall, minD) = self.findWall((x, y, theta))
         m = self.calculate_fwd_distance(x, y, theta, wall)
         #print("wall and m: " + str(wall) + str(m))
+        print("M IS: " + str(m))
         #Check which one works between m and mWall (to compare with z)
         #Calculate difference (sonar compensates for 2cm addition)
         #If incidence angle is too big for sensible readings, skip update
-        d = z - m + 2
-        if(m > 150 or m < 10):
+        SENSOR_ACCURACY = -2
+        DIST_SENSOR_CENTER = 4
+        SENSOR_UPPER_BOUND = 150
+        SENSOR_LOWER_BOUND = 10
+        
+        d = z - m + SENSOR_ACCURACY + DIST_SENSOR_CENTER
+        if(m > SENSOR_UPPER_BOUND or m < SENSOR_LOWER_BOUND):
             gauss = 1
         else:
             gauss = self.gaussian_estimate(d)
@@ -276,7 +282,7 @@ class Particles:
         #sd = 0.025
         sd = 3
         # Each particle gets at least 0.5% chance of occurring
-        const = 0.005
+        const = 0.0005
         return math.exp(-(d**2)/(2 * sd**2)) + const
 
     def findWall(self, position):
