@@ -220,8 +220,6 @@ class Particles:
     def calculate_fwd_distance(self, x, y, theta, wall):
         (Ax, Ay, Bx, By) = wall
         m = (abs(By - Ay) * abs(Ax - x) - abs(Bx - Ax) * abs(Ay - y))/(abs(By - Ay) * cos(theta) - abs(Bx - Ax) * sin(theta))
-        #xWall = x + m*cos(theta)
-        #yWall = y + m*sin(theta)
         return abs(m)
 
     #returns likelihood based on position and sonar measurement
@@ -235,20 +233,17 @@ class Particles:
         #Check which one works between m and mWall (to compare with z)
         #Calculate difference (sonar compensates for 2cm addition)
         #If incidence angle is too big for sensible readings, skip update
-        SENSOR_ACCURACY = -2
-        DIST_SENSOR_CENTER = 4
+        SENSOR_ACCURACY = 1
+        DIST_SENSOR_CENTER = 2
         SENSOR_UPPER_BOUND = 150
         SENSOR_LOWER_BOUND = 10
         
         d = z - m + SENSOR_ACCURACY + DIST_SENSOR_CENTER
-        if(m > SENSOR_UPPER_BOUND or m < SENSOR_LOWER_BOUND):
+        if(z > SENSOR_UPPER_BOUND or z < SENSOR_LOWER_BOUND):
             gauss = 1
         else:
             gauss = self.gaussian_estimate(d)
         return gauss
-    
-    #forty_cm_length = 11.6755
-    #unit_cm_length = forty_cm_length/40
 
 
     def displayParticles():
