@@ -1,10 +1,10 @@
 #!usr/bin/env python
 # By Jacek Zienkiewicz and Andrew Davison, Imperial College London, 2014
 # Based on original C code by Adrien Angeli, 2009
-
+import brickpi
 import random
 import os
-
+import math
 
 # initialise interface
 
@@ -43,7 +43,7 @@ interface.sensorEnable(sonarPort, brickpi.SensorType.SENSOR_ULTRASONIC)
 class LocationSignature:
     # def __init__(self, no_bins = 360):
     #     self.sig = [0] * no_bins
-    def __init__(self, no_bins = 255);
+    def __init__(self, no_bins = 256):
         self.sig = [0] * no_bins
 
     def print_signature(self):
@@ -120,12 +120,12 @@ class SignatureContainer():
 def characterize_location(ls):
     # Spin motor in increments until it has done a full circle
     angleSpun = 0
-    SONAR_MIN_ROTATION = 5
-    while (angleSpun <= 360):
+    SONAR_MIN_ROTATION = 5 * (math.pi / 180)
+    while (angleSpun <= 2 * math.pi):
         # Take sonar measurements
         reading = interface.getSensorValue(sonarPort)
         # Record measurements in the signature
-        ls.sig[reading] += 1
+        ls.sig[reading[0]] += 1
 
         # Spin the motor
         interface.increaseMotorAngleReferences(sonar_motor, [SONAR_MIN_ROTATION])
@@ -135,7 +135,7 @@ def characterize_location(ls):
         angleSpun += SONAR_MIN_ROTATION
 
     # Unwind the motor due to the cable
-    interface.increaseMotorAngleReferences(sonar_motor, [-360])
+    interface.increaseMotorAngleReferences(sonar_motor, [- 2 * math.pi])
     while not interface.motorAngleReferencesReached(sonar_motor):
         motorAngles = interface.getMotorAngles(sonar_motor)
 
