@@ -18,7 +18,7 @@ interface.motorEnable(sonar_motor[0])
 sonar_motor_params = interface.MotorAngleControllerParameters()
 
 sonar_motor_params.maxRotationAcceleration = 6.0
-sonar_motor_params.maxRotationSpeed = 18.0
+sonar_motor_params.maxRotationSpeed = 4.0
 sonar_motor_params.feedForwardGain = 255/20.0
 sonar_motor_params.minPMW = 16.0
 sonar_motor_params.pidParameters.minOutput = -255
@@ -43,7 +43,8 @@ interface.sensorEnable(sonarPort, brickpi.SensorType.SENSOR_ULTRASONIC)
 class LocationSignature:
     # def __init__(self, no_bins = 360):
     # def __init__(self, no_bins = 256):
-    def __init__(self, no_bins = 180):
+    # def __init__(self, no_bins = 181):
+    def __init__(self, no_bins = 37):
         self.sig = [0] * no_bins
 
     def print_signature(self):
@@ -118,29 +119,16 @@ class SignatureContainer():
 # Should complete a full rotation; on every measurement, increment a counter in each
 # element of the signature array at index equal to the depth measured by the sonar.
 def characterize_location(ls):
-    # Spin motor in increments until it has done a full circle
-    # angleSpun = 0
-    # SONAR_MIN_ROTATION = 5 * (math.pi / 180)
-    # while (angleSpun <= 2 * math.pi):
-    #     # Take sonar measurements
-    #     reading = interface.getSensorValue(sonarPort)
-    #     # Record measurements in the signature
-    #     ls.sig[reading[0]] += 1
-
-    #     # Spin the motor
-    #     interface.increaseMotorAngleReferences(sonar_motor, [SONAR_MIN_ROTATION])
-    #     while not interface.motorAngleReferencesReached(sonar_motor):
-    #         motorAngles = interface.getMotorAngles(sonar_motor)
-    #     # Increment loop counter
-    #     angleSpun += SONAR_MIN_ROTATION
     MOTOR_ROTATION = math.pi
 
     init_motor_angle = interface.getMotorAngles(sonar_motor)
     real_angle = 0
+
+    count = [0] * 37
     # print("INIT MOTOR ANGLE " + str(init_motor_angle))
     # Spin the motor
     interface.increaseMotorAngleReferences(sonar_motor, [MOTOR_ROTATION])
-    while not interface.motorAngleReferencesReached(sonar_motor) or real_degrees >= 180 :
+    while not interface.motorAngleReferencesReached(sonar_motor) :
         # Take sonar measurements
         reading = interface.getSensorValue(sonarPort)
         # Record measurements in the signature
@@ -148,18 +136,29 @@ def characterize_location(ls):
         real_degrees = int(math.degrees(real_angle))
         print("degree bucket is: " + str(real_degrees))
         print("Reading is: " + str(reading[0]))
-        ls.sig[real_degrees] = reading[0]
-
-
+        if (real_degrees <= 180 and reading[0] > 10):
+            ls.sig[int(real_degrees/5)] += reading[0]
+            count[int(real_degrees/5)] += 1
 
     # Unwind the motor due to the cable
     interface.increaseMotorAngleReferences(sonar_motor, [-MOTOR_ROTATION])
     while not interface.motorAngleReferencesReached(sonar_motor):
-        motorAngles = interface.getMotorAngles(sonar_motor)
+        # Take sonar measurements
+        reading = interface.getSensorValue(sonarPort)
+        # Record measurements in the signature
+        real_angle = interface.getMotorAngles(sonar_motor)[0][0] - init_motor_angle[0][0]
+        real_degrees = int(math.degrees(real_angle))
+        print("degree bucket is: " + str(real_degrees))
+        print("Reading is: " + str(reading[0]))
+        if (real_degrees <= 180 and reading[0] > 10):
+            ls.sig[int(real_degrees/5)] += reading[0]
+            count[int(real_degrees/5)] += 1
 
     # Print the signature
-    for i in range(0, ls.sig.length):
-        print("Signature at " + str(i) + "is: " + ls.sig[i])
+    for i in range(0, len(ls.sig)):
+        if(count[i] != 0):
+            ls.sig[i] /= count[i]
+        print("Signature at " + str(i) + " is: " + str(ls.sig[i]))
 
 def compare_signatures(ls1, ls2):
     dist = 0
