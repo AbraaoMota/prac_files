@@ -44,14 +44,14 @@ interface.setMotorAngleControllerParameters(motors[0],motorParams_0)
 interface.setMotorAngleControllerParameters(motors[1],motorParams_1)
 
 def rotate(angle1, angle2):
-	interface.increaseMotorAngleReferences(motors,[angle1,angle2])
-	while not interface.motorAngleReferencesReached(motors) :
-		motorAngles = interface.getMotorAngles(motors)
-		if motorAngles :
-			print "Motor angles: ", motorAngles[0][0], ", ", motorAngles[1][0]
-		time.sleep(0.1)
+    interface.increaseMotorAngleReferences(motors,[angle1,angle2])
+    while not interface.motorAngleReferencesReached(motors) :
+        motorAngles = interface.getMotorAngles(motors)
+        #if motorAngles :
+         #   print "Motor angles: ", motorAngles[0][0], ", ", motorAngles[1][0]
+        time.sleep(0.1)
 
-	print "Destination reached!"
+    print "Destination reached!"
 
 
 reverse_length = 4
@@ -68,33 +68,39 @@ interface.sensorEnable(right_touch_port, brickpi.SensorType.SENSOR_TOUCH)
 left_touched = 0
 right_touched = 0
 
-while True :
-	left_touched = interface.getSensorValue(left_touch_port)[0]
-	right_touched = interface.getSensorValue(right_touch_port)[0]
+currX = 0
+currY = 0
+currAngle = 0
 
-	print "left touched is"
-	print left_touched
-	print "right touched is"
-	print right_touched
+left_touched = interface.getSensorValue(left_touch_port)[0]
+right_touched = interface.getSensorValue(right_touch_port)[0]
 
-	interface.setMotorRotationSpeedReferences(motors, [6.0, 6.0])
-	while not left_touched and not right_touched :
-		print "left touched is"
-		print left_touched
-		print "right touched is"
-		print right_touched
-		left_touched = interface.getSensorValue(left_touch_port)[0]
-		right_touched = interface.getSensorValue(right_touch_port)[0]
-	if left_touched :
-		interface.setMotorPwm(motors[0],0)
-	        interface.setMotorPwm(motors[1],0)
-		rotate(-reverse_length, -reverse_length)
-		rotate(-ninety_deg_turn, ninety_deg_turn)
-	elif right_touched :
-		interface.setMotorPwm(motors[0],0)
-	        interface.setMotorPwm(motors[1],0)
-		rotate(-reverse_length, -reverse_length)
-		rotate(ninety_deg_turn, -ninety_deg_turn)
+
+motorAngles = interface.getMotorAngles(motors)
+x = motorAngles[0][0]
+y = motorAngles[1][0]
+print "Current pos is our origin: " + str(x) + "    " + str(y)
+    
+interface.setMotorRotationSpeedReferences(motors, [6.0, 6.0])
+while not left_touched and not right_touched :
+    left_touched = interface.getSensorValue(left_touch_port)[0]
+    right_touched = interface.getSensorValue(right_touch_port)[0]
+    
+motorAngles = interface.getMotorAngles(motors)
+currX = motorAngles[0][0] - x
+currY = motorAngles[1][0] - y
+print "Current pos: " + str(currX) + "    " + str(currX)        
+
+if left_touched or right_touched:
+    interface.setMotorPwm(motors[0],0)
+    interface.setMotorPwm(motors[1],0)
+    rotate(-reverse_length, -reverse_length)
+        
+motorAngles = interface.getMotorAngles(motors)
+currX = motorAngles[0][0] - x
+currY = motorAngles[1][0] - y
+print "Current pos: " + str(currX) + "    " + str(currX)
+
 
 interface.terminate()
 

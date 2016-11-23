@@ -100,6 +100,14 @@ WC2 = (40, 53)
 
 objectWaypoints = [wA1, wA2, wB1, wB2, wC1, wC2]
 
+left_touch_port = 3
+right_touch_port = 2
+reverse_length = 4
+
+interface.sensorEnable(left_touch_port, brickpi.SensorType.SENSOR_TOUCH)
+interface.sensorEnable(right_touch_port, brickpi.SensorType.SENSOR_TOUCH)
+
+
 # A Canvas class for drawing a map and particles:
 #     - it takes care of a proper scaling and coordinate transformation between
 #      the map frame of reference (in cm) and the display (in pixels)
@@ -174,8 +182,6 @@ def rotate(angle):
     interface.increaseMotorAngleReferences(motors,[angle1,-angle2])
     while not interface.motorAngleReferencesReached(motors) :
         motorAngles = interface.getMotorAngles(motors)
-        #if motorAngles :
-            #print "Motor angles: ", motorAngles[0][0], ", ", motorAngles[1][0]
         time.sleep(0.1)
 
     print "Destination reached!"
@@ -189,8 +195,6 @@ def move(distance):
 
     while not interface.motorAngleReferencesReached(motors) :
         motorAngles = interface.getMotorAngles(motors)
-        #if motorAngles :
-            #print "Motor angles: ", motorAngles[0][0], ", ", motorAngles[1][0]
         time.sleep(0.1)
     
     print "Destination reached!"
@@ -426,71 +430,37 @@ particles = Particles();
 
 waypoints = [w2, w3, w4, w5, w6, w7, w8, w9]
 
-currX = w1[0]
-currY = w1[1]
-currAngle = 0
-
-for (givenX, givenY) in waypoints:
-    # Calculate distance and angle
-    distance = getDistanceToTravel(currX, currY, givenX, givenY)
-    angle = (math.atan2(givenY-currY, givenX-currX)) - currAngle
+def bumpObject(currX, currY, currAngle, particles):
+    left_touched = 0
+    right_touched = 0
+    
+    # Find angle to object with sonar
+    angle = findObject()
     angle = normaliseAngle(angle)
-
-    print("angle to turn: " + str(angle * (180/math.pi)))
-
-    # Rotate
-    print("currX is:")
-    print(currX)
-    print("currY is:")
-    print(currY)
-    print("givenX is:")
-    print(givenX)
-    print("givenY is:")
-    print(givenY)
-    print("currAngle is:")
-    print(currAngle)
     rotate(angle)
-    particles.updateR(angle)
-    particles.updateParticles()
-    particles.normalise()
-    particles.resample()
-    (currX, currY, currAngle) = particles.updateCurrentValues()
-    particles.draw()
-    # Move in 20 cm steps.
-    while (distance > 20):
-        move(20)
-        distance -= 20
-        particles.updateM(20)
-        particles.updateParticles()
-        particles.normalise()
-        particles.resample()
-        (currX, currY, currAngle) = particles.updateCurrentValues()
-        #print(str(currX) + " " + str(currY)+ " " + str(currAngle) + "PRINTING CURRENT")
-        particles.draw()
-        #print("Finished drawing particles")
-        time.sleep(0.25)
-        #print(particles.data)
     
-    move(distance)
-    particles.updateM(distance)
-    particles.updateParticles()
-    particles.normalise()
-    particles.resample()
-    (currX, currY, currAngle) = particles.updateCurrentValues()
-    particles.draw()
-    #print("Finished drawing particles")
-    time.sleep(0.25)
-    #print(particles.data)
-
+    # Drive blindly to it - need to store x's and y's
+    # How to get correct x's y's? #TODO
+    interface.setMotorRotationSpeedReferences(motors, [6.0, 6.0])
+        
+    while not left_touched and not right_touched :
+        left_touched = interface.getSensorValue(left_touch_port)[0]
+        right_touched = interface.getSensorValue(right_touch_port)[0]
+        
+    #if we hit something, stop the motors and reverse.
+    if left_touched or right_touched:
+        interface.setMotorPwm(motors[0],0)
+        interface.setMotorPwm(motors[1],0)
+        rotate(-reverse_length, -reverse_length)
 
 
     
-    # Itinerary:
-#Travel from wA1 to wA2.
-#MCL with predefined angles to update - should be from PAO
-#Sonar finds object.
-#Drive to object.
-#Travel from object to wB1.
+# Itinerary:
+# Travel from wX1 to wX2.
+# MCL with predefined angles to update - should be from PAO #TODO
+# Sonar finds object.
+# Drive to object.
+# Travel from object to wB1.
 currX = w1[0]
 currY = w1[1]
 currAngle = 0
@@ -519,33 +489,7 @@ for (x, y) in objectWaypoints:
     #particle.draw()
     
     # Find object continuously polls the bump sensor
-    (currX, currY, currAngle) = findObject(currX, currY, currAngle)
+    (currX, currY, currAngle) = bumpObject(currX, currY, currAngle)
     
-    
-#for i in range(0,1):
-#    for j in range(0,1):
-#        #rotate(right_wheel_strength_multiplier * ten_cm_length,  left_wheel_strength_multiplier * ten_cm_length)
-#        particles.updateM(20)
-#        particles.updateParticles()
-#        particles.normalise()
-#        particles.resample()
-#        #particles = updateMotion(10, particles) # only the last set of particles is displayed
-#        particles.draw()
-#        print("Finished drawing particles")
-#        time.sleep(0.25)
-#    #rotate(right_wheel_strength_multiplier * ninety_deg_turn, left_wheel_strength_multiplier * -ninety_deg_turn)
-#    # we use pi/2 because the degrees are in radians.
-#    particles.updateR(3*math.pi/2)
-#    particles.updateParticles()
-#    particles.normalise()
-#    particles.resample()
-#    particles.updateM(20)
-#    particles.updateParticles()
-#    particles.normalise()
-#    particles.resample()
-#    print("Finished drawing particles")
-#    #particles = updateRotation(math.pi/2, particles) # only the last set of particles is displayed
-#    particles.draw()
-#    time.sleep(0.25)
     
 #interface.terminate()
