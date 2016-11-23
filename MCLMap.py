@@ -81,9 +81,6 @@ right_wheel_strength_multiplier = 1
 
 # Definitions of waypoints
 w1 = (84, 30)
-# 96
-# x=1.84
-
 w2 = (180, 30)
 w3 = (180, 54)
 w4 = (138, 54)
@@ -92,6 +89,16 @@ w6 = (114, 168)
 w7 = (114, 84)
 w8 = (84, 84)
 w9 = (84, 30)
+
+#Definitions of waypoints for OFC
+wA1 = w1
+wA2 = (115, 30)
+WB1 = (124, 73)
+WB2 = (94, 94)
+WC1 = (73, 94)
+WC2 = (40, 53)
+
+objectWaypoints = [wA1, wA2, wB1, wB2, wC1, wC2]
 
 # A Canvas class for drawing a map and particles:
 #     - it takes care of a proper scaling and coordinate transformation between
@@ -364,6 +371,12 @@ class Particles:
 
     def draw(self):
         canvas.drawParticles(self.data);
+        
+    def runMCL(self):
+        self.updateParticles()
+        self.normalise()
+        self.resample()
+        #self.draw()
 
 canvas = Canvas();    # global canvas we are going to draw on
 
@@ -470,6 +483,45 @@ for (givenX, givenY) in waypoints:
     #print(particles.data)
 
 
+
+    
+    # Itinerary:
+#Travel from wA1 to wA2.
+#MCL with predefined angles to update - should be from PAO
+#Sonar finds object.
+#Drive to object.
+#Travel from object to wB1.
+currX = w1[0]
+currY = w1[1]
+currAngle = 0
+
+
+for (x, y) in objectWaypoints:
+    # Calculate distance and angle
+    distance = getDistanceToTravel(currX, currY, givenX, givenY)
+    angle = (math.atan2(givenY-currY, givenX-currX)) - currAngle
+    angle = normaliseAngle(angle)
+    rotate(angle)
+    
+    # MCL after rotation
+    particles.updateR(angle)
+    particles.runMCL()
+    (currX, currY, currAngle) = particles.updateCurrentValues()
+    #particles.draw()
+    
+    # Move to waypoint
+    move(distance)
+    
+    # MCL after movement
+    particles.updateM(distance)
+    particles.runMCL()
+    (currX, currY, currAngle) = particles.updateCurrentValues()
+    #particle.draw()
+    
+    # Find object continuously polls the bump sensor
+    (currX, currY, currAngle) = findObject(currX, currY, currAngle)
+    
+    
 #for i in range(0,1):
 #    for j in range(0,1):
 #        #rotate(right_wheel_strength_multiplier * ten_cm_length,  left_wheel_strength_multiplier * ten_cm_length)
