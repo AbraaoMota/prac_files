@@ -19,7 +19,7 @@ sonar_motor_params = interface.MotorAngleControllerParameters()
 
 sonar_motor_params.maxRotationAcceleration = 6.0
 sonar_motor_params.maxRotationSpeed = 4.0
-sonar_motor_params.feedForwardGain = 255/20.0
+sonar_motor_params.feedForwardGain = 400/20.0
 sonar_motor_params.minPMW = 16.0
 sonar_motor_params.pidParameters.minOutput = -255
 sonar_motor_params.pidParameters.maxOutput = 255
@@ -53,7 +53,7 @@ class LocationSignature:
 
 # --------------------- File management class ---------------
 class SignatureContainer():
-    def __init__(self, size = 5):
+    def __init__(self, size):
         self.size      = size; # max number of signatures that can be stored
         self.filenames = [];
 
@@ -120,12 +120,10 @@ class SignatureContainer():
 # element of the signature array at index equal to the depth measured by the sonar.
 def characterize_location(ls):
     MOTOR_ROTATION = math.pi
-
     init_motor_angle = interface.getMotorAngles(sonar_motor)
     real_angle = 0
 
     count = [0] * 37
-    # print("INIT MOTOR ANGLE " + str(init_motor_angle))
     # Spin the motor
     interface.increaseMotorAngleReferences(sonar_motor, [MOTOR_ROTATION])
     while not interface.motorAngleReferencesReached(sonar_motor) :
@@ -160,9 +158,18 @@ def characterize_location(ls):
             ls.sig[i] /= count[i]
         print("Signature at " + str(i) + " is: " + str(ls.sig[i]))
 
+
+
 def compare_signatures(ls1, ls2):
     dist = 0
-    print "TODO:    You should implement the function that compares two signatures."
+    s1 = ls1.sig
+    s2 = ls2.sig
+    for i in range(len(s1)):
+        sig1Val = s1[i]
+        sig2Val = s2[i]
+        diff = sig1Val - sig2Val
+        diffSquared = diff * diff
+        dist += diffSquared
     return dist
 
 # This function characterizes the current location, and stores the obtained
@@ -189,23 +196,68 @@ def learn_location():
 #      actual characterization is the smallest.
 # 4.   Display the index of the recognized location on the screen
 def recognize_location():
+    RECOGNITION_THRESHOLD = 13000
     ls_obs = LocationSignature();
     characterize_location(ls_obs);
 
-    # FILL IN: COMPARE ls_read with ls_obs and find the best match
+    sigDists = [0] * signatures.size
     for idx in range(signatures.size):
-        print "STATUS:  Comparing signature " + str(idx) + " with the observed signature."
         ls_read = signatures.read(idx);
         dist    = compare_signatures(ls_obs, ls_read)
+        sigDists[idx] = dist
+
+    for i in range(len(sigDists)):
+        print("distance is: " + str(sigDists[i]))
+        if (sigDists[i] < RECOGNITION_THRESHOLD):
+            print("This location is similar to " + str(i))
+    print("Tried to recognise")
+
+
+def find_bottle():
+    ACCURATE_THRESHOLD = 160
+    MEASURABLE_DIFF = 20
+
+    ls_bottle = LocationSignature()
+    characterize_location(ls_bottle)
+    bottle_sig = ls_bottle.sig
+
+    # Suppose we're comparing against the first signature
+    cached_sig = signatures.read(0)
+
+    contiguous_counter = 0
+    bottle_angle = -1
+
+    for i in range(bottle_sig):
+        curr = bottle_sig[i]
+        cached_curr = cached_sig[i]
+        if curr < ACCURATE_THRESHOLD:
+            diff = cached_curr - curr
+            if diff > MEASURABLE_DIFF:
+                contiguous_counter += 1
+                if contiguous_counter >= 3:
+                    bottle_angle = i- int(contiguous_counter / 2)
+            else:
+                contiguous_counter = 0
+
+    normalised_angle = bottle_angle * 5
+    angle_to_turn = (normalised_angle - 90) * -1
+
+
+    # answer is in degrees
+    # radians variant
+    # return math.radians(bottle_angle)
+    return bottle_angle
+
 
 # Prior to starting learning the locations, it should delete files from previous
 # learning either manually or by calling signatures.delete_loc_files().
 # Then, either learn a location, until all the locations are learned, or try to
 # recognize one of them, if locations have already been learned.
 
-signatures = SignatureContainer(5);
+signatures = SignatureContainer(7);
 #signatures.delete_loc_files()
 
-learn_location();
-recognise_location();
+# learn_location();
+#recognize_location();
+find_bottle()
 
