@@ -93,10 +93,10 @@ w9 = (84, 30)
 #Definitions of waypoints for OFC
 wA1 = w1
 wA2 = (115, 30)
-WB1 = (124, 73)
-WB2 = (94, 94)
-WC1 = (73, 94)
-WC2 = (40, 53)
+wB1 = (124, 73)
+wB2 = (94, 94)
+wC1 = (73, 94)
+wC2 = (40, 53)
 
 objectWaypoints = [wA1, wA2, wB1, wB2, wC1, wC2]
 
@@ -135,7 +135,7 @@ class Canvas:
     def __screenY(self,y):
         return (self.map_size + self.margin - y)*self.scale
 
-# A Map class containing walls
+# A Map class containing walls$
 class Map:
     def __init__(self):
         self.walls = [];
@@ -223,10 +223,7 @@ class Particles:
             newTheta = theta + f * np.sign(rnf)
             newParticles.append((newX, newY, newTheta, weight))
         self.data = newParticles    
-        #self.data = [(calcX(), calcY(), calcTheta(), calcW()) for i in range(self.n)];
     
-    # After each rotation, take a sonar measurement
-    # Update all particles by calling likelihood on each
 
     def calculate_fwd_distance(self, x, y, theta, wall):
         (Ax, Ay, Bx, By) = wall
@@ -429,18 +426,27 @@ particles = Particles();
 #w9 = (84, 30)
 
 waypoints = [w2, w3, w4, w5, w6, w7, w8, w9]
+ROTATION_FACTOR = 3.294
+def findObject(angle):
+    return 0
+
+
 
 def bumpObject(currX, currY, currAngle, particles):
     left_touched = 0
     right_touched = 0
     
     # Find angle to object with sonar
-    angle = findObject()
+    angle = findObject(currAngle)
     angle = normaliseAngle(angle)
     rotate(angle)
+    newAngle = currAngle + angle
     
     # Drive blindly to it - need to store x's and y's
-    # How to get correct x's y's? #TODO
+    motorAngles = interface.getMotorAngles(motors)
+    orgX = motorAngles[0][0]
+    orgY = motorAngles[1][0]
+    
     interface.setMotorRotationSpeedReferences(motors, [6.0, 6.0])
         
     while not left_touched and not right_touched :
@@ -451,7 +457,25 @@ def bumpObject(currX, currY, currAngle, particles):
     if left_touched or right_touched:
         interface.setMotorPwm(motors[0],0)
         interface.setMotorPwm(motors[1],0)
-        rotate(-reverse_length, -reverse_length)
+        move(-10)
+    
+    # At this point, we want to get a sense of our position - odometrically
+    motorAngles = interface.getMotorAngles(motors)
+    bumpX = motorAngles[0][0] - orgX
+    bumpY = motorAngles[1][0] - orgY
+    bump = (bumpX + bumpY) / 2
+    
+    #Get distance travelled by applying factor
+    
+    dist = bump * ROTATION_FACTOR
+    
+    newX = currX + dist * cos(newAngle) - 3 #error factor; tbc
+    newY = currY + dist * sin(newAngle) - 3 #error factor; tbc
+    
+    particles.updateM(dist - 3)
+    #update with angle or newAngle???
+    particles.updateR(angle)
+    return (newX, newY, newAngle, particles)
 
 
     
@@ -461,9 +485,30 @@ def bumpObject(currX, currY, currAngle, particles):
 # Sonar finds object.
 # Drive to object.
 # Travel from object to wB1.
-currX = w1[0]
-currY = w1[1]
+
+currX = 0
+currY = 0
 currAngle = 0
+reverse_length = 5
+
+
+(currX, currY, currAngle, particles) = bumpObject(currX, currY, currAngle, particles)
+print("Coords: " + str(currX) + " " + str(currY) + " " + str(currAngle))
+'''
+motorAngles = interface.getMotorAngles(motors)
+x = motorAngles[0][0]
+y = motorAngles[1][0]
+print "Current pos is our ORIGIN: " + str(x) + "    " + str(y)
+move(31)
+motorAngles = interface.getMotorAngles(motors)
+currX = motorAngles[0][0] - x
+currY = motorAngles[1][0] - y
+print "CURRENT POS: " + str(currX) + "    " + str(currY)
+move(-5)
+motorAngles = interface.getMotorAngles(motors)
+currX = motorAngles[0][0] - x
+currY = motorAngles[1][0] - y
+print "CURRENT POS: " + str(currX) + "    " + str(currY)
 
 
 for (x, y) in objectWaypoints:
@@ -492,4 +537,5 @@ for (x, y) in objectWaypoints:
     (currX, currY, currAngle) = bumpObject(currX, currY, currAngle)
     
     
+    '''
 #interface.terminate()
