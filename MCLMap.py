@@ -23,7 +23,8 @@ range1 = lambda start, end: range(start, end+1)
 NUMBER_OF_PARTICLES = 100
 # Adjust if motors turn differently for the same angle.
 ANGLE_MULTIPLIER = 1
-ROTATION_RADIANS_MULTIPLIER= 2.2969
+# ROTATION_RADIANS_MULTIPLIER= 2.2969
+ROTATION_RADIANS_MULTIPLIER = 3.0625
 NINETY_DEG_TURN = 3.77
 
 
@@ -295,30 +296,33 @@ def find_bottle():
     cached_sig = signatures.read(0)
 
     contiguous_counter = 0
-    bottle_angle = -1
+    bottle_angle = 0
 
-    for i in range(bottle_sig):
+    for i in range(len(bottle_sig)):
         curr = bottle_sig[i]
-        cached_curr = cached_sig[i]
+        cached_curr = cached_sig.sig[i]
         if curr < ACCURATE_THRESHOLD:
             diff = cached_curr - curr
             if diff > MEASURABLE_DIFF:
                 contiguous_counter += 1
                 if contiguous_counter >= 3:
-                    bottle_angle = i- int(contiguous_counter / 2)
+                    bottle_angle = i - int(contiguous_counter / 2)
             else:
                 contiguous_counter = 0
 
     normalised_angle = bottle_angle * 5
-    angle_to_turn = (normalised_angle - 90) * -1
+    print("BOTTLE ANGLE IS " + str(bottle_angle) + ", NORMALISED ANGLE IS " + str(normalised_angle))
+    if normalised_angle == 0:
+        angle_to_turn = 0
+    else :
+        angle_to_turn = (normalised_angle - 90) * -1
 
 
     # answer is in degrees
     # radians variant
-    # return math.radians(bottle_angle)
-    return bottle_angle
-
-
+    print("WE THINK WE NEED TO TURN " + str(angle_to_turn))
+    return math.radians(angle_to_turn)
+    # return bottle_angle
 
 
 forty_cm_length = 11.6755
@@ -425,8 +429,19 @@ def distanceToRobotRadians(distance):
 
 def rotate(angle):
     _angle = normaliseAngle(angle)
+    print("NORMALISING ANGLE IN ROTATE TO " + str(_angle))
     angle1 = _angle * ROTATION_RADIANS_MULTIPLIER
     angle2 = (_angle * ROTATION_RADIANS_MULTIPLIER) * ANGLE_MULTIPLIER
+    interface.increaseMotorAngleReferences(motors,[angle1,-angle2])
+    while not interface.motorAngleReferencesReached(motors) :
+        motorAngles = interface.getMotorAngles(motors)
+        time.sleep(0.1)
+
+    print "Destination reached!"
+
+def not_normalised_rotate(angle):
+    angle1 = angle * ROTATION_RADIANS_MULTIPLIER
+    angle2 = (angle * ROTATION_RADIANS_MULTIPLIER) * ANGLE_MULTIPLIER
     interface.increaseMotorAngleReferences(motors,[angle1,-angle2])
     while not interface.motorAngleReferencesReached(motors) :
         motorAngles = interface.getMotorAngles(motors)
@@ -687,8 +702,10 @@ def bumpObject(currX, currY, currAngle, particles):
     # Find angle to object with sonar
     # angle = findObject(currAngle)
     angle = find_bottle()
-    # Find bottle should already be normalising the angle - won't be over pi / 2 either way
-    # angle = normaliseAngle(angle)
+    print("WE FOUND THE BOTTLE AT ANGLE: " + str(angle))
+
+    angle = normaliseAngle(angle)
+    print("CURR ANGLE IS: " + str(currAngle) + ", PASSING NORMALISED ANGLE : " + str(angle))
     rotate(angle)
     newAngle = currAngle + angle
     
@@ -741,8 +758,11 @@ currY = 0
 currAngle = 0
 reverse_length = 5
 
-signatures = SignatureContainer(7)
+# ang = normaliseAngle(math.radians(360))
+# rotate(math.pi * 2)
+not_normalised_rotate(math.pi / 2)
 
+signatures = SignatureContainer(7)
 (currX, currY, currAngle, particles) = bumpObject(currX, currY, currAngle, particles)
 print("Coords: " + str(currX) + " " + str(currY) + " " + str(currAngle))
 '''
