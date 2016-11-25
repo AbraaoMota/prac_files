@@ -19,7 +19,7 @@ sonar_motor_params = interface.MotorAngleControllerParameters()
 
 sonar_motor_params.maxRotationAcceleration = 6.0
 sonar_motor_params.maxRotationSpeed = 4.0
-sonar_motor_params.feedForwardGain = 255/20.0
+sonar_motor_params.feedForwardGain = 400/20.0
 sonar_motor_params.minPMW = 16.0
 sonar_motor_params.pidParameters.minOutput = -255
 sonar_motor_params.pidParameters.maxOutput = 255
@@ -53,7 +53,7 @@ class LocationSignature:
 
 # --------------------- File management class ---------------
 class SignatureContainer():
-    def __init__(self, size = 5):
+    def __init__(self, size = 20):
         self.size      = size; # max number of signatures that can be stored
         self.filenames = [];
 
@@ -120,12 +120,10 @@ class SignatureContainer():
 # element of the signature array at index equal to the depth measured by the sonar.
 def characterize_location(ls):
     MOTOR_ROTATION = math.pi
-
     init_motor_angle = interface.getMotorAngles(sonar_motor)
     real_angle = 0
 
     count = [0] * 37
-    # print("INIT MOTOR ANGLE " + str(init_motor_angle))
     # Spin the motor
     interface.increaseMotorAngleReferences(sonar_motor, [MOTOR_ROTATION])
     while not interface.motorAngleReferencesReached(sonar_motor) :
@@ -160,9 +158,11 @@ def characterize_location(ls):
             ls.sig[i] /= count[i]
         print("Signature at " + str(i) + " is: " + str(ls.sig[i]))
 
+
+
 def compare_signatures(ls1, ls2):
     dist = 0
-    print "TODO:    You should implement the function that compares two signatures."
+    print "TODO COMPARE SIGS"
     return dist
 
 # This function characterizes the current location, and stores the obtained
@@ -203,7 +203,7 @@ def recognize_location():
 # Then, either learn a location, until all the locations are learned, or try to
 # recognize one of them, if locations have already been learned.
 
-signatures = SignatureContainer(5);
+signatures = SignatureContainer();
 #signatures.delete_loc_files()
 
 learn_location();
