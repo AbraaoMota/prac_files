@@ -257,7 +257,7 @@ def find_bottle():
 signatures = SignatureContainer(7);
 #signatures.delete_loc_files()
 
-# learn_location();
+learn_location();
 #recognize_location();
-find_bottle()
+#find_bottle()
 
