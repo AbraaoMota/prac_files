@@ -296,7 +296,7 @@ def find_bottle():
     cached_sig = signatures.read(0)
 
     contiguous_counter = 0
-    bottle_angle = 0
+    bottle_angle = -1
 
     for i in range(len(bottle_sig)):
         curr = bottle_sig[i]
@@ -312,17 +312,18 @@ def find_bottle():
 
     normalised_angle = bottle_angle * 5
     print("BOTTLE ANGLE IS " + str(bottle_angle) + ", NORMALISED ANGLE IS " + str(normalised_angle))
-    if normalised_angle == 0:
-        angle_to_turn = 0
-    else :
-        angle_to_turn = (normalised_angle - 90) * -1
-
+    angle_to_turn = 90 - normalised_angle
 
     # answer is in degrees
     # radians variant
     print("WE THINK WE NEED TO TURN " + str(angle_to_turn))
-    return math.radians(angle_to_turn)
-    # return bottle_angle
+    angle_to_turn = math.radians(angle_to_turn)
+    
+    #We return -1 if we don't find a contiguous area - i.e. bottle
+    if bottle_angle == -1:
+	return bottle_angle
+    else:
+	return angle_to_turn
 
 
 forty_cm_length = 11.6755
@@ -346,6 +347,7 @@ w9 = (84, 30)
 wA1 = w1
 wA2 = (115, 30)
 wB1 = (124, 73)
+wB1b = (124, 133)
 wB2 = (94, 94)
 wC1 = (73, 94)
 wC2 = (40, 53)
@@ -704,6 +706,10 @@ def bumpObject(currX, currY, currAngle, particles):
     angle = find_bottle()
     print("WE FOUND THE BOTTLE AT ANGLE: " + str(angle))
 
+    #If we do not find the bottle, break free and go to next pitstop
+    if angle == -1:
+	return (currX, currY, currAngle, particles)
+
     angle = normaliseAngle(angle)
     print("CURR ANGLE IS: " + str(currAngle) + ", PASSING NORMALISED ANGLE : " + str(angle))
     rotate(angle)
@@ -782,31 +788,62 @@ currY = motorAngles[1][0] - y
 print "CURRENT POS: " + str(currX) + "    " + str(currY)
 
 
+
+bumpWaypoints = [wA2, wB1, wB1b, wC1]
+# Disclaimer: MCL has to take into consideration the sonar measurements
+# from 3 places - -90, 0 and 90 degrees from current angle.
+
+found_object = 0
 for (x, y) in objectWaypoints:
+    # If we're thinking about going to the second waypoint in B,
+    # we check if we've already bumped the bottle in that zone
+    if found_object == 1 and (x, y) == wB1b:
+	continue
+    found_object = 0
+
     # Calculate distance and angle
     distance = getDistanceToTravel(currX, currY, givenX, givenY)
     angle = (math.atan2(givenY-currY, givenX-currX)) - currAngle
     angle = normaliseAngle(angle)
     rotate(angle)
-    
+    currAngle += angle    
+
+    # I'm against MCL after rotation - to discuss.
     # MCL after rotation
-    particles.updateR(angle)
-    particles.runMCL()
-    (currX, currY, currAngle) = particles.updateCurrentValues()
+    #particles.updateR(angle)
+    #particles.runMCL()
+    #(currX, currY, currAngle) = particles.updateCurrentValues()
     #particles.draw()
     
     # Move to waypoint
     move(distance)
     
-    # MCL after movement
-    particles.updateM(distance)
-    particles.runMCL()
-    (currX, currY, currAngle) = particles.updateCurrentValues()
-    #particle.draw()
+    # not sure if currAngle or angle? what does rotate update?
+    # If we are in waypoint wB1, we need to turn to 90 degrees.
+    if (x, y) == wB1:
+        rotate(90 - currAngle)
+	currAngle = 90
+
+    # only done in waypoints: wA2, wB1, wB1b, wC1
+     
+    if (x, y) in bumpWaypoints:
+     
+    	# MCL after movement
+    	particles.updateM(distance)
+    	particles.runMCL()
+    	(currX, currY, currAngle) = particles.updateCurrentValues()
+    	#particle.draw()
+    	# Find object continuously polls the bump sensor
+    	(newX, newY, newAngle) = bumpObject(currX, currY, currAngle)
     
-    # Find object continuously polls the bump sensor
-    (currX, currY, currAngle) = bumpObject(currX, currY, currAngle)
-    
+    	#If we found an object, we set the boolean to true; useful for zone B
+    	# in case we have to take multiple measurements to find the bottle
+    	if not(newX == currX and newY == currY and newAngle == currAngle):
+	    found_object = 1
+    	currX = newX
+    	currY = newY
+    	currAngle = newAngle
+
     
     '''
 #interface.terminate()
