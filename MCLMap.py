@@ -286,7 +286,7 @@ def recognize_location():
 
 def find_bottle():
     ACCURATE_THRESHOLD = 160
-    MEASURABLE_DIFF = 20
+    MEASURABLE_DIFF = 10
 
     ls_bottle = LocationSignature()
     characterize_location(ls_bottle)
@@ -760,7 +760,7 @@ reverse_length = 5
 
 # ang = normaliseAngle(math.radians(360))
 # rotate(math.pi * 2)
-not_normalised_rotate(math.pi / 2)
+#not_normalised_rotate(math.pi / 2)
 
 signatures = SignatureContainer(7)
 (currX, currY, currAngle, particles) = bumpObject(currX, currY, currAngle, particles)
