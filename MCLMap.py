@@ -188,14 +188,17 @@ class SignatureContainer():
         return ls
 
 
-def spin_motor(motor_rot):
+def spin_motor(ls, count,  motor_rot):
+    init_motor_angle = interface.getMotorAngles(sonar_motor)
+    real_angle       = 0
+
     # spin the motor
-    interface.increasemotoranglereferences(sonar_motor, [motor_rot])
-    while not interface.motoranglereferencesreached(sonar_motor) :
+    interface.increaseMotorAngleReferences(sonar_motor, [motor_rot])
+    while not interface.motorAngleReferencesReached(sonar_motor) :
         # take sonar measurements
-        reading      = interface.getsensorvalue(sonarport)
+        reading      = interface.getSensorValue(sonarPort)
         # record measurements in the signature
-        real_angle   = interface.getmotorangles(sonar_motor)[0][0] - init_motor_angle[0][0]
+        real_angle   = interface.getMotorAngles(sonar_motor)[0][0] - init_motor_angle[0][0]
         real_degrees = int(math.degrees(real_angle))
 
         print("degree bucket is: " + str(real_degrees))
@@ -204,26 +207,24 @@ def spin_motor(motor_rot):
         if (real_degrees <= 180 and reading[0] > 10):
             ls.sig[int(real_degrees / 5)] += reading[0]
             count[int(real_degrees / 5)]  += 1
-
+    return count
 
 # Sonar should spin in small increments (to be decided depending on motor accuracy)
 # Should complete a full rotation; on every measurement, increment a counter in each
 # element of the signature array at index equal to the depth measured by the sonar.
 def characterize_location(ls):
-    MOTOR_ROTATION   = math.pi
-    init_motor_angle = interface.getMotorAngles(sonar_motor)
-    real_angle       = 0
-    count            = [0] * 37
-    
-    # soin the motor
-    spin_motor(motor_rotation);
+    MOTOR_ROTATION = math.pi
+    count          = [0] * 37
+
+    # spin the motor
+    count = spin_motor(ls, count, MOTOR_ROTATION)
     # unwind the cable 
-    spin_motor(-motor_rotation)
+    count = spin_motor(ls, count, -MOTOR_ROTATION)
 
     # Print the signature
     for i in range(0, len(ls.sig)):
         if(count[i] != 0):
-            ls.sig[i] /= count[i]=
+            ls.sig[i] /= count[i]
         print("Signature at " + str(i) + " is: " + str(ls.sig[i]))
 
 
@@ -236,12 +237,11 @@ def compare_signatures(ls1, ls2):
     for i in range(len(s1)):
         sig1Val = s1[i]
         sig2Val = s2[i]
-        
-        diff        = sig1Val - sig2Val
+        diff    = sig1Val - sig2Val
+
         diffSquared = diff * diff
         dist        += diffSquared
     return dist
-
 
 # This function characterizes the current location, and stores the obtained
 # signature into the next available file.
@@ -271,25 +271,27 @@ def learn_location():
 # 4.   Display the index of the recognized location on the screen
 def recognize_location():
     RECOGNITION_THRESHOLD = 13000
-    ls_obs = LocationSignature();
+    ls_obs                = LocationSignature();
+   
     characterize_location(ls_obs);
-
     sigDists = [0] * signatures.size
+   
     for idx in range(signatures.size):
-        ls_read = signatures.read(idx);
-        dist    = compare_signatures(ls_obs, ls_read)
+        ls_read       = signatures.read(idx);
+        dist          = compare_signatures(ls_obs, ls_read)
         sigDists[idx] = dist
 
     for i in range(len(sigDists)):
         print("distance is: " + str(sigDists[i]))
         if (sigDists[i] < RECOGNITION_THRESHOLD):
             print("This location is similar to " + str(i))
+            
     print("Tried to recognise")
 
 
 def find_bottle():
     ACCURATE_THRESHOLD = 160
-    MEASURABLE_DIFF = 10
+    MEASURABLE_DIFF    = 10
 
     ls_bottle = LocationSignature()
     characterize_location(ls_bottle)
@@ -299,11 +301,12 @@ def find_bottle():
     cached_sig = signatures.read(0)
 
     contiguous_counter = 0
-    bottle_angle = -1
+    bottle_angle       = -1
 
     for i in range(len(bottle_sig)):
-        curr = bottle_sig[i]
+        curr        = bottle_sig[i]
         cached_curr = cached_sig.sig[i]
+       
         if curr < ACCURATE_THRESHOLD:
             diff = cached_curr - curr
             if diff > MEASURABLE_DIFF:
@@ -314,7 +317,9 @@ def find_bottle():
                 contiguous_counter = 0
 
     normalised_angle = bottle_angle * 5
-    print("BOTTLE ANGLE IS " + str(bottle_angle) + ", NORMALISED ANGLE IS " + str(normalised_angle))
+    print("BOTTLE ANGLE IS "       + str(bottle_angle) + 
+          ", NORMALISED ANGLE IS " + str(normalised_angle))
+
     angle_to_turn = 90 - normalised_angle
 
     # answer is in degrees
@@ -324,14 +329,17 @@ def find_bottle():
     
     #We return -1 if we don't find a contiguous area - i.e. bottle
     if bottle_angle == -1:
-	return bottle_angle
+	    return bottle_angle
     else:
-	return angle_to_turn
+	    return angle_to_turn
 
 
-forty_cm_length = 11.6755
-ten_cm_length = forty_cm_length/4
-ninety_deg_turn = 3.6575 
+
+
+
+forty_cm_length                 = 11.6755
+ten_cm_length                   = forty_cm_length/4
+ninety_deg_turn                 = 3.6575 
 left_wheel_strength_multiplier  = 1
 right_wheel_strength_multiplier = 1
 
@@ -341,6 +349,7 @@ w2 = (180, 30)
 w3 = (180, 54)
 w4 = (138, 54)
 w5 = (138, 168)
+w6 = (114, 168)
 w6 = (114, 168)
 w7 = (114, 84)
 w8 = (84, 84)
@@ -357,9 +366,9 @@ wC2 = (40, 53)
 
 objectWaypoints = [wA1, wA2, wB1, wB2, wC1, wC2]
 
-left_touch_port = 3
+left_touch_port  = 3
 right_touch_port = 2
-reverse_length = 4
+reverse_length   = 4
 
 interface.sensorEnable(left_touch_port, brickpi.SensorType.SENSOR_TOUCH)
 interface.sensorEnable(right_touch_port, brickpi.SensorType.SENSOR_TOUCH)
@@ -437,16 +446,17 @@ def rotate(angle):
     print("NORMALISING ANGLE IN ROTATE TO " + str(_angle))
     angle1 = _angle * ROTATION_RADIANS_MULTIPLIER
     angle2 = (_angle * ROTATION_RADIANS_MULTIPLIER) * ANGLE_MULTIPLIER
+
     interface.increaseMotorAngleReferences(motors,[angle1,-angle2])
     while not interface.motorAngleReferencesReached(motors) :
         motorAngles = interface.getMotorAngles(motors)
         time.sleep(0.1)
-
     print "Destination reached!"
 
 def not_normalised_rotate(angle):
     angle1 = angle * ROTATION_RADIANS_MULTIPLIER
     angle2 = (angle * ROTATION_RADIANS_MULTIPLIER) * ANGLE_MULTIPLIER
+   
     interface.increaseMotorAngleReferences(motors,[angle1,-angle2])
     while not interface.motorAngleReferencesReached(motors) :
         motorAngles = interface.getMotorAngles(motors)
@@ -527,24 +537,24 @@ class Particles:
 
 
     def updateCurrentValues(self):
-        xCounter = 0
-        yCounter = 0
+        xCounter     = 0
+        yCounter     = 0
         thetaCounter = 0
         # Summing up.
         for (x, y, theta, weight) in self.data:
-            xCounter += x 
-            yCounter += y
+            xCounter     += x 
+            yCounter     += y
             thetaCounter += theta
             
-        xCounter /= NUMBER_OF_PARTICLES
-        yCounter /= NUMBER_OF_PARTICLES
+        xCounter     /= NUMBER_OF_PARTICLES
+        yCounter     /= NUMBER_OF_PARTICLES
         thetaCounter /= NUMBER_OF_PARTICLES
         
-        #print("This is the angle the particles think they are at: " + str(thetaCounter * 180/math.pi))
-#        print("This is the x and the y where the particles think they are at: " + str(x) + ", " + str(y)) # Normalise angle so it's between pi and -pi
+        # print("This is the angle the particles think they are at: " + str(thetaCounter * 180/math.pi))
+        # print("This is the x and the y where the particles think they are at: " + str(x) + ", " + str(y)) # Normalise angle so it's between pi and -pi
         thetaCounter = normaliseAngle(thetaCounter)
-        print("This is the angle the particles think they are at after normalising: " + str(thetaCounter * 180/math.pi))
-
+        print("This is the angle the particles think they are at after normalising: " 
+              + str(thetaCounter * 180/math.pi))
         return (xCounter, yCounter, thetaCounter)
 
 
@@ -597,8 +607,10 @@ class Particles:
     def updateParticles(self):
         # Take sonar measurement:
         sonar = self.takeSonarM()
+        
         print("I HAVE TAKEN SONAR: " + str(sonar))
         newParticles = []
+        
         # For each particle, calculate likelihood and add it to the new Particles with updated weight
         for (x, y, theta, weight) in self.data:
             weight *= self.calculate_likelihood(x, y, theta, sonar)
@@ -627,15 +639,16 @@ class Particles:
     def resample(self):
         lotteryTicketParticles = []
         result                 = []
-#        print(self.data)
+
         for (x1, y1, theta1, weight1) in self.data:
             for i in range(0, int(round(weight1 * NUMBER_OF_PARTICLES))):
                 lotteryTicketParticles.append((x1, y1, theta1, weight1))
+       
         for j in range(0, NUMBER_OF_PARTICLES):
             randomIndex = random.randint(0, len(lotteryTicketParticles) - 1)
             (newX, newY, newTheta, newWeight) = lotteryTicketParticles[randomIndex]
             result.append((newX, newY, newTheta, newWeight))
-#        print(result)
+        
         self.data = result
 
     def draw(self):
@@ -701,7 +714,7 @@ def findObject(angle):
 
 
 def bumpObject(currX, currY, currAngle, particles):
-    left_touched = 0
+    left_touched  = 0
     right_touched = 0
     
     # Find angle to object with sonar
@@ -711,10 +724,11 @@ def bumpObject(currX, currY, currAngle, particles):
 
     #If we do not find the bottle, break free and go to next pitstop
     if angle == -1:
-	return (currX, currY, currAngle, particles)
+	    return (currX, currY, currAngle, particles)
 
     angle = normaliseAngle(angle)
     print("CURR ANGLE IS: " + str(currAngle) + ", PASSING NORMALISED ANGLE : " + str(angle))
+
     rotate(angle)
     newAngle = currAngle + angle
     
@@ -725,11 +739,11 @@ def bumpObject(currX, currY, currAngle, particles):
     
     interface.setMotorRotationSpeedReferences(motors, [6.0, 6.0])
         
-    while not left_touched and not right_touched :
-        left_touched = interface.getSensorValue(left_touch_port)[0]
+    while not left_touched and not right_touched:
+        left_touched  = interface.getSensorValue(left_touch_port)[0]
         right_touched = interface.getSensorValue(right_touch_port)[0]
         
-    #if we hit something, stop the motors and reverse.
+    # if we hit something, stop the motors and reverse.
     if left_touched or right_touched:
         interface.setMotorPwm(motors[0],0)
         interface.setMotorPwm(motors[1],0)
@@ -762,18 +776,21 @@ def bumpObject(currX, currY, currAngle, particles):
 # Drive to object.
 # Travel from object to wB1.
 
-currX = 0
-currY = 0
-currAngle = 0
+currX          = 0
+currY          = 0
+currAngle      = 0
 reverse_length = 5
 
 # ang = normaliseAngle(math.radians(360))
 # rotate(math.pi * 2)
 #not_normalised_rotate(math.pi / 2)
 
-signatures = SignatureContainer(7)
+signatures                           = SignatureContainer(7)
 (currX, currY, currAngle, particles) = bumpObject(currX, currY, currAngle, particles)
+
 print("Coords: " + str(currX) + " " + str(currY) + " " + str(currAngle))
+
+
 '''
 motorAngles = interface.getMotorAngles(motors)
 x = motorAngles[0][0]
@@ -789,7 +806,6 @@ motorAngles = interface.getMotorAngles(motors)
 currX = motorAngles[0][0] - x
 currY = motorAngles[1][0] - y
 print "CURRENT POS: " + str(currX) + "    " + str(currY)
-
 
 
 bumpWaypoints = [wA2, wB1, wB1b, wC1]
