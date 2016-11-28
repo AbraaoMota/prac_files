@@ -83,13 +83,15 @@ interface.motorEnable(sonar_motor[0])
 sonar_motor_params = interface.MotorAngleControllerParameters()
 
 sonar_motor_params.maxRotationAcceleration = 6.0
-sonar_motor_params.maxRotationSpeed = 4.0
-sonar_motor_params.feedForwardGain = 400/20.0
-sonar_motor_params.minPMW = 16.0
+sonar_motor_params.maxRotationSpeed        = 4.0
+sonar_motor_params.feedForwardGain         = 400/20.0
+sonar_motor_params.minPMW                  = 16.0
+
 sonar_motor_params.pidParameters.minOutput = -255
 sonar_motor_params.pidParameters.maxOutput = 255
-sonar_motor_params.pidParameters.k_p = 450
-sonar_motor_params.pidParameters.k_i = 340
+sonar_motor_params.pidParameters.k_p       = 450
+sonar_motor_params.pidParameters.k_i       = 340
+
 k_d = 400
 sonar_motor_params.pidParameters.k_d = k_d
 
@@ -186,62 +188,60 @@ class SignatureContainer():
         return ls
 
 
+def spin_motor(motor_rot):
+    # spin the motor
+    interface.increasemotoranglereferences(sonar_motor, [motor_rot])
+    while not interface.motoranglereferencesreached(sonar_motor) :
+        # take sonar measurements
+        reading      = interface.getsensorvalue(sonarport)
+        # record measurements in the signature
+        real_angle   = interface.getmotorangles(sonar_motor)[0][0] - init_motor_angle[0][0]
+        real_degrees = int(math.degrees(real_angle))
+
+        print("degree bucket is: " + str(real_degrees))
+        print("reading is: "       + str(reading[0]))
+
+        if (real_degrees <= 180 and reading[0] > 10):
+            ls.sig[int(real_degrees / 5)] += reading[0]
+            count[int(real_degrees / 5)]  += 1
+
+
 # Sonar should spin in small increments (to be decided depending on motor accuracy)
 # Should complete a full rotation; on every measurement, increment a counter in each
 # element of the signature array at index equal to the depth measured by the sonar.
 def characterize_location(ls):
-    MOTOR_ROTATION = math.pi
+    MOTOR_ROTATION   = math.pi
     init_motor_angle = interface.getMotorAngles(sonar_motor)
-    real_angle = 0
-
-    count = [0] * 37
-    # Spin the motor
-    interface.increaseMotorAngleReferences(sonar_motor, [MOTOR_ROTATION])
-    while not interface.motorAngleReferencesReached(sonar_motor) :
-        # Take sonar measurements
-        reading = interface.getSensorValue(sonarPort)
-        # Record measurements in the signature
-        real_angle = interface.getMotorAngles(sonar_motor)[0][0] - init_motor_angle[0][0]
-        real_degrees = int(math.degrees(real_angle))
-        print("degree bucket is: " + str(real_degrees))
-        print("Reading is: " + str(reading[0]))
-        if (real_degrees <= 180 and reading[0] > 10):
-            ls.sig[int(real_degrees/5)] += reading[0]
-            count[int(real_degrees/5)] += 1
-
-    # Unwind the motor due to the cable
-    interface.increaseMotorAngleReferences(sonar_motor, [-MOTOR_ROTATION])
-    while not interface.motorAngleReferencesReached(sonar_motor):
-        # Take sonar measurements
-        reading = interface.getSensorValue(sonarPort)
-        # Record measurements in the signature
-        real_angle = interface.getMotorAngles(sonar_motor)[0][0] - init_motor_angle[0][0]
-        real_degrees = int(math.degrees(real_angle))
-        print("degree bucket is: " + str(real_degrees))
-        print("Reading is: " + str(reading[0]))
-        if (real_degrees <= 180 and reading[0] > 10):
-            ls.sig[int(real_degrees/5)] += reading[0]
-            count[int(real_degrees/5)] += 1
+    real_angle       = 0
+    count            = [0] * 37
+    
+    # soin the motor
+    spin_motor(motor_rotation);
+    # unwind the cable 
+    spin_motor(-motor_rotation)
 
     # Print the signature
     for i in range(0, len(ls.sig)):
         if(count[i] != 0):
-            ls.sig[i] /= count[i]
+            ls.sig[i] /= count[i]=
         print("Signature at " + str(i) + " is: " + str(ls.sig[i]))
 
 
 
 def compare_signatures(ls1, ls2):
     dist = 0
-    s1 = ls1.sig
-    s2 = ls2.sig
+    s1   = ls1.sig
+    s2   = ls2.sig
+
     for i in range(len(s1)):
         sig1Val = s1[i]
         sig2Val = s2[i]
-        diff = sig1Val - sig2Val
+        
+        diff        = sig1Val - sig2Val
         diffSquared = diff * diff
-        dist += diffSquared
+        dist        += diffSquared
     return dist
+
 
 # This function characterizes the current location, and stores the obtained
 # signature into the next available file.
@@ -249,6 +249,7 @@ def learn_location():
     ls = LocationSignature()
     characterize_location(ls)
     idx = signatures.get_free_index();
+
     if (idx == -1): # run out of signature files
         print "\nWARNING:"
         print "No signature file is available. NOTHING NEW will be learned and stored."
@@ -257,6 +258,8 @@ def learn_location():
 
     signatures.save(ls,idx)
     print "STATUS:  Location " + str(idx) + " learned and saved."
+
+
 
 # This function tries to recognize the current location.
 # 1.   Characterize current location
