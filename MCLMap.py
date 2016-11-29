@@ -188,7 +188,7 @@ class SignatureContainer():
         return ls
 
 
-def spin_motor(ls, count,  motor_rot):
+def spin_sonar(ls, count,  motor_rot):
     init_motor_angle = interface.getMotorAngles(sonar_motor)
     real_angle       = 0
 
@@ -207,7 +207,7 @@ def spin_motor(ls, count,  motor_rot):
         if (real_degrees <= 180 and reading[0] > 10):
             ls.sig[int(real_degrees / 5)] += reading[0]
             count[int(real_degrees / 5)]  += 1
-    return count
+    return (count, ls.sig)
 
 # Sonar should spin in small increments (to be decided depending on motor accuracy)
 # Should complete a full rotation; on every measurement, increment a counter in each
@@ -217,9 +217,9 @@ def characterize_location(ls):
     count          = [0] * 37
 
     # spin the motor
-    count = spin_motor(ls, count, MOTOR_ROTATION)
-    # unwind the cable 
-    count = spin_motor(ls, count, -MOTOR_ROTATION)
+    (count, ls.sig) = spin_sonar(ls, count, MOTOR_ROTATION)
+    # unwind the cable
+    (count, ls.sig) = spin_sonar(ls, count, -MOTOR_ROTATION)
 
     # Print the signature
     for i in range(0, len(ls.sig)):
@@ -349,7 +349,6 @@ w2 = (180, 30)
 w3 = (180, 54)
 w4 = (138, 54)
 w5 = (138, 168)
-w6 = (114, 168)
 w6 = (114, 168)
 w7 = (114, 84)
 w8 = (84, 84)
