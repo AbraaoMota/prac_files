@@ -24,7 +24,7 @@ NUMBER_OF_PARTICLES = 100
 # Adjust if motors turn differently for the same angle.
 ANGLE_MULTIPLIER = 1
 # ROTATION_RADIANS_MULTIPLIER= 2.2969
-ROTATION_RADIANS_MULTIPLIER = 3.0625
+ROTATION_RADIANS_MULTIPLIER = 2.3010
 NINETY_DEG_TURN = 3.77
 
 
@@ -188,8 +188,8 @@ class SignatureContainer():
         return ls
 
 
-def spin_sonar(ls, count,  motor_rot, real_angle):
-    init_motor_angle = interface.getMotorAngles(sonar_motor)
+def spin_sonar(ls, count,  motor_rot, real_angle, init_motor_angle):
+    # init_motor_angle = interface.getMotorAngles(sonar_motor)
     # real_angle       = 0
 
     # spin the motor
@@ -198,7 +198,7 @@ def spin_sonar(ls, count,  motor_rot, real_angle):
         # take sonar measurements
         reading      = interface.getSensorValue(sonarPort)
         # record measurements in the signature
-        real_angle   = interface.getMotorAngles(sonar_motor)[0][0] - init_motor_angle[0][0]
+        real_angle   = (interface.getMotorAngles(sonar_motor)[0][0] - init_motor_angle[0][0])
         print("We are calculating angle to be: " + str(interface.getMotorAngles(sonar_motor)[0][0]) + " minus " + str(init_motor_angle[0][0])  +  " to give: "  + str(interface.getMotorAngles(sonar_motor)[0][0] - init_motor_angle[0][0]))
         real_degrees = int(math.degrees(real_angle))
 
@@ -214,14 +214,15 @@ def spin_sonar(ls, count,  motor_rot, real_angle):
 # Should complete a full rotation; on every measurement, increment a counter in each
 # element of the signature array at index equal to the depth measured by the sonar.
 def characterize_location(ls):
-    MOTOR_ROTATION = math.pi
-    count          = [0] * 37
-    real_angle     = 0
+    MOTOR_ROTATION   = math.pi
+    count            = [0] * 37
+    real_angle       = 0
+    init_motor_angle = interface.getMotorAngles(sonar_motor)
 
     # spin the motor
-    (count, ls.sig) = spin_sonar(ls, count, MOTOR_ROTATION, real_angle)
+    (count, ls.sig) = spin_sonar(ls, count, MOTOR_ROTATION, real_angle, init_motor_angle)
     # unwind the cable
-    (count, ls.sig) = spin_sonar(ls, count, -MOTOR_ROTATION, real_angle)
+    (count, ls.sig) = spin_sonar(ls, count, -MOTOR_ROTATION, real_angle, init_motor_angle)
 
     # Print the signature
     for i in range(0, len(ls.sig)):
@@ -287,13 +288,13 @@ def recognize_location():
         print("distance is: " + str(sigDists[i]))
         if (sigDists[i] < RECOGNITION_THRESHOLD):
             print("This location is similar to " + str(i))
-            
+
     print("Tried to recognise")
 
 
 def find_bottle():
-    ACCURATE_THRESHOLD = 160
-    MEASURABLE_DIFF    = 20
+    ACCURATE_THRESHOLD = 140
+    MEASURABLE_DIFF    = 10
 
     ls_bottle = LocationSignature()
     characterize_location(ls_bottle)
@@ -304,11 +305,12 @@ def find_bottle():
 
     contiguous_counter = 0
     bottle_angle       = -1
-
+    final_angle = -1
+    maxCC = 0
     for i in range(len(bottle_sig)):
         curr        = bottle_sig[i]
         cached_curr = cached_sig.sig[i]
-       
+
         if curr < ACCURATE_THRESHOLD:
             diff = cached_curr - curr
             if diff > MEASURABLE_DIFF:
@@ -316,10 +318,14 @@ def find_bottle():
                 if contiguous_counter >= 3:
                     bottle_angle = i - int(contiguous_counter / 2)
             else:
+                if contiguous_counter > maxCC:
+                    maxCC       = contiguous_counter
+                    final_angle = bottle_angle
                 contiguous_counter = 0
 
+    bottle_angle     = final_angle
     normalised_angle = bottle_angle * 5
-    print("BOTTLE ANGLE IS "       + str(bottle_angle) + 
+    print("BOTTLE ANGLE IS "       + str(bottle_angle) +
           ", NORMALISED ANGLE IS " + str(normalised_angle))
 
     # Don't change to radians, done below
@@ -329,7 +335,7 @@ def find_bottle():
     # radians variant
     print("WE THINK WE NEED TO TURN " + str(angle_to_turn))
     angle_to_turn = math.radians(angle_to_turn)
-    
+
     #We return -1 if we don't find a contiguous area - i.e. bottle
     if bottle_angle == -1:
 	    return bottle_angle
@@ -360,13 +366,14 @@ w9 = (84, 30)
 #Definitions of waypoints for OFC
 wA1 = w1
 wA2 = (115, 30)
+wA2b = (135, 30)
 wB1 = (124, 73)
 wB1b = (124, 133)
 wB2 = (94, 94)
 wC1 = (73, 94)
 wC2 = (40, 53)
 
-objectWaypoints = [wA1, wA2, wB1, wB2, wC1, wC2]
+objectWaypoints = [wA1, wA2, wA2b, wB1, wB1b, wB2, wC1, wC2]
 
 left_touch_port  = 3
 right_touch_port = 2
@@ -475,7 +482,7 @@ def not_normalised_rotate(angle):
         
 def move(distance):
     # Multiply by constant if motors are weaker
-    MOVE_CONST = 1
+    MOVE_CONST = 0.9756 # This is based off a measurement of 41cm when should be 40. == 40/41
     distance *= MOVE_CONST
 
     # Get the corresponding motor rotation in radians
@@ -734,8 +741,10 @@ def bumpObject(currX, currY, currAngle, particles):
     print("WE FOUND THE BOTTLE AT ANGLE: " + str(angle))
 
     #If we do not find the bottle, break free and go to next pitstop
-    if angle == -1:
-	    return (currX, currY, currAngle, particles)
+    while (angle == -1):
+            move(10)
+            angle = find_bottle()
+	    # return (currX, currY, currAngle, particles)
 
     angle = normaliseAngle(angle)
     print("CURR ANGLE IS: " + str(currAngle) + ", PASSING NORMALISED ANGLE : " + str(angle))
@@ -793,14 +802,16 @@ currAngle      = 0
 
 # ang = normaliseAngle(math.radians(360))
 # rotate(math.pi * 2)
-#not_normalised_rotate(math.pi / 2)
+# not_normalised_rotate(math.pi / 2)
+# move(40)
+
 
 signatures                           = SignatureContainer(7)
 #(currX, currY, currAngle, particles) = bumpObject(currX, currY, currAngle, particles)
 
 #print("Coords: " + str(currX) + " " + str(currY) + " " + str(currAngle))
 
-bumpWaypoints = [wA2, wB1, wB1b, wC1]
+bumpWaypoints = [wA2, wA2b, wB1, wB1b, wC1]
 # Disclaimer: MCL has to take into consideration the sonar measurements
 # from 3 places - -90, 0 and 90 degrees from current angle.
 
@@ -808,7 +819,7 @@ found_object = 0
 for (x, y) in objectWaypoints:
     # If we're thinking about going to the second waypoint in B,
     # we check if we've already bumped the bottle in that zone
-    if found_object == 1 and (x, y) == wB1b:
+    if found_object == 1 and ((x, y) == wB1b) or ((x, y) == wA2b):
         continue
     found_object = 0
 
@@ -819,7 +830,7 @@ for (x, y) in objectWaypoints:
     angle = (math.atan2(givenY-currY, givenX-currX)) - currAngle
     angle = normaliseAngle(angle)
     rotate(angle)
-    currAngle += angle    
+    currAngle += angle
 
     # I'm against MCL after rotation - to discuss.
     # MCL after rotation
