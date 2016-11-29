@@ -254,7 +254,7 @@ def find_bottle():
 # Then, either learn a location, until all the locations are learned, or try to
 # recognize one of them, if locations have already been learned.
 
-signatures = SignatureContainer(7);
+signatures = SignatureContainer(20);
 #signatures.delete_loc_files()
 
 learn_location();

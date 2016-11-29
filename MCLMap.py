@@ -199,11 +199,11 @@ def spin_sonar(ls, count,  motor_rot, real_angle, init_motor_angle):
         reading      = interface.getSensorValue(sonarPort)
         # record measurements in the signature
         real_angle   = (interface.getMotorAngles(sonar_motor)[0][0] - init_motor_angle[0][0])
-        print("We are calculating angle to be: " + str(interface.getMotorAngles(sonar_motor)[0][0]) + " minus " + str(init_motor_angle[0][0])  +  " to give: "  + str(interface.getMotorAngles(sonar_motor)[0][0] - init_motor_angle[0][0]))
+#        print("We are calculating angle to be: " + str(interface.getMotorAngles(sonar_motor)[0][0]) + " minus " + str(init_motor_angle[0][0])  +  " to give: "  + str(interface.getMotorAngles(sonar_motor)[0][0] - init_motor_angle[0][0]))
         real_degrees = int(math.degrees(real_angle))
 
-        print("degree bucket is: " + str(real_degrees))
-        print("reading is: "       + str(reading[0]))
+#        print("degree bucket is: " + str(real_degrees))
+#        print("reading is: "       + str(reading[0]))
 
         if (real_degrees <= 180 and reading[0] > 10):
             ls.sig[int(real_degrees / 5)] += reading[0]
@@ -306,6 +306,8 @@ def find_bottle():
     contiguous_counter = 0
     bottle_angle       = -1
     final_angle = -1
+    bottle_distance = -1
+    final_distance = -1
     maxCC = 0
     for i in range(len(bottle_sig)):
         curr        = bottle_sig[i]
@@ -316,11 +318,14 @@ def find_bottle():
             if diff > MEASURABLE_DIFF:
                 contiguous_counter += 1
                 if contiguous_counter >= 3:
-                    bottle_angle = i - int(contiguous_counter / 2)
+                    middle_index = i - int(contiguous_counter / 2)
+                    bottle_angle = middle_index
+                    bottle_distance = bottle_sig[middle_index]
             else:
                 if contiguous_counter > maxCC:
                     maxCC       = contiguous_counter
                     final_angle = bottle_angle
+                    final_distance = bottle_distance
                 contiguous_counter = 0
 
     bottle_angle     = final_angle
@@ -338,9 +343,9 @@ def find_bottle():
 
     #We return -1 if we don't find a contiguous area - i.e. bottle
     if bottle_angle == -1:
-	    return bottle_angle
+	    return (bottle_angle, bottle_distance)
     else:
-	    return angle_to_turn
+	    return (angle_to_turn, final_distance)
 
 
 
@@ -373,7 +378,7 @@ wB2 = (94, 94)
 wC1 = (73, 94)
 wC2 = (40, 53)
 
-objectWaypoints = [wA1, wA2, wA2b, wB1, wB1b, wB2, wC1, wC2]
+objectWaypoints = [wA1, wA2, wA2b, wB1, wB1b, wB2, wC1, wC2, wA1]
 
 left_touch_port  = 3
 right_touch_port = 2
@@ -538,7 +543,7 @@ class Particles:
         #Calculate difference (sonar compensates for 2cm addition)
         #If incidence angle is too big for sensible readings, skip update
         SENSOR_ACCURACY = 1
-        DIST_SENSOR_CENTER = 2
+        DIST_SENSOR_CENTER = 6
         SENSOR_UPPER_BOUND = 150
         SENSOR_LOWER_BOUND = 10
         
@@ -732,19 +737,20 @@ def findObject(angle):
 
 
 def bumpObject(currX, currY, currAngle, particles):
-    left_touched  = 0
-    right_touched = 0
+    # If a bottle is more than 40 away, go to next waypoint and look again.
+    DIST_CONST    = 60
+    left_touched  =  0
+    right_touched =  0
     
     # Find angle to object with sonar
     # angle = findObject(currAngle)
-    angle = find_bottle()
-    print("WE FOUND THE BOTTLE AT ANGLE: " + str(angle))
+    (angle, distance) = find_bottle()
+    print("WE FOUND THE BOTTLE AT ANGLE: "  + str(angle))
+    print("WE FOUND THE BOTTLE AT DISTANCE: " + str(angle))
 
-    #If we do not find the bottle, break free and go to next pitstop
-    while (angle == -1):
-            move(10)
-            angle = find_bottle()
-	    # return (currX, currY, currAngle, particles)
+    #If we do not find the bottle or if the bottle is too far, break free and go to next pitstop
+    if (angle == -1) or (distance > DIST_CONST):
+	    return (currX, currY, currAngle, particles)
 
     angle = normaliseAngle(angle)
     print("CURR ANGLE IS: " + str(currAngle) + ", PASSING NORMALISED ANGLE : " + str(angle))
@@ -757,7 +763,9 @@ def bumpObject(currX, currY, currAngle, particles):
     orgX = motorAngles[0][0]
     orgY = motorAngles[1][0]
     
-    interface.setMotorRotationSpeedReferences(motors, [6.0, 6.0])
+    interface.setMotorRotationSpeedReferences(motors, [10.0, 10.0])
+    # Increasing the motor speed.
+#    interface.setMotorRotationSpeedReferences(motors, [10.0, 10.0])
         
     while not left_touched and not right_touched:
         left_touched  = interface.getSensorValue(left_touch_port)[0]
@@ -796,9 +804,6 @@ def bumpObject(currX, currY, currAngle, particles):
 # Drive to object.
 # Travel from object to wB1.
 
-currX          = wA1[0]
-currY          = wA1[1]
-currAngle      = 0
 
 # ang = normaliseAngle(math.radians(360))
 # rotate(math.pi * 2)
@@ -806,12 +811,12 @@ currAngle      = 0
 # move(40)
 
 
+currX          = wA1[0]
+currY          = wA1[1]
+currAngle      = 0
+
 signatures                           = SignatureContainer(7)
-#(currX, currY, currAngle, particles) = bumpObject(currX, currY, currAngle, particles)
-
-#print("Coords: " + str(currX) + " " + str(currY) + " " + str(currAngle))
-
-bumpWaypoints = [wA2, wA2b, wB1, wB1b, wC1]
+bumpWaypoints = [wA2, wA2b, wB1, wB1b, wC1, wA2]
 # Disclaimer: MCL has to take into consideration the sonar measurements
 # from 3 places - -90, 0 and 90 degrees from current angle.
 
@@ -834,15 +839,20 @@ for (x, y) in objectWaypoints:
 
     # I'm against MCL after rotation - to discuss.
     # MCL after rotation
-    #particles.updateR(angle)
-    #particles.runMCL()
-    #(currX, currY, currAngle) = particles.updateCurrentValues()
+    particles.updateR(angle)
+    particles.runMCL()
+    (currX, currY, currAngle) = particles.updateCurrentValues()
     #particles.draw()
     
     # Move to waypoint
     move(distance)
-    currX = givenX
-    currY = givenY
+    #currX = givenX
+    #currY = givenY
+    #MCL
+    particles.updateM(distance)
+    particles.runMCL()
+    (currX, currY, currAngle) = particles.updateCurrentValues()
+    particles.draw()
      
     # not sure if currAngle or angle? what does rotate update?
     # If we are in waypoint wB1, we need to turn to 90 degrees.
@@ -855,10 +865,6 @@ for (x, y) in objectWaypoints:
 
      # V comments belong inside the loop
      # MCL after movement
-    	# particles.updateM(distance)
-    	# particles.runMCL()
-    	# (currX, currY, currAngle) = particles.updateCurrentValues()
-    	#particle.draw()
 
     if (x, y) in bumpWaypoints:
      
