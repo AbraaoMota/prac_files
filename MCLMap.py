@@ -441,6 +441,11 @@ def distanceToRobotRadians(distance):
     return distance * radiansMultiplier
 
 def rotate(angle):
+    # Multiply the angle by a constant to normalise rotation due 
+    # to decreased rotation accuracy
+    ROTATION_CONST = 2
+    angle *= ROTATION_CONST
+
     _angle = normaliseAngle(angle)
     print("NORMALISING ANGLE IN ROTATE TO " + str(_angle))
     angle1 = _angle * ROTATION_RADIANS_MULTIPLIER
@@ -466,6 +471,10 @@ def not_normalised_rotate(angle):
     
         
 def move(distance):
+    # Multiply by constant if motors are weaker
+    MOVE_CONST = 1
+    distance *= MOVE_CONST
+
     # Get the corresponding motor rotation in radians
     _distance = distanceToRobotRadians(distance)
     interface.increaseMotorAngleReferences(motors,[(_distance),(_distance)])
@@ -758,12 +767,12 @@ def bumpObject(currX, currY, currAngle, particles):
     
     dist = bump * ROTATION_FACTOR
     
-    newX = currX + dist * cos(newAngle) - 3 #error factor; tbc
-    newY = currY + dist * sin(newAngle) - 3 #error factor; tbc
+    newX = currX + (dist - 3) * cos(newAngle) #error factor; tbc
+    newY = currY + (dist - 3) * sin(newAngle) #error factor; tbc
     
-    particles.updateM(dist - 3)
+    #particles.updateM(dist - 3)
     #update with angle or newAngle???
-    particles.updateR(angle)
+    #particles.updateR(angle)
     return (newX, newY, newAngle, particles)
 
 
@@ -775,37 +784,18 @@ def bumpObject(currX, currY, currAngle, particles):
 # Drive to object.
 # Travel from object to wB1.
 
-currX          = 0
-currY          = 0
+currX          = wA1[0]
+currY          = wA1[1]
 currAngle      = 0
-reverse_length = 5
 
 # ang = normaliseAngle(math.radians(360))
 # rotate(math.pi * 2)
 #not_normalised_rotate(math.pi / 2)
 
 signatures                           = SignatureContainer(7)
-(currX, currY, currAngle, particles) = bumpObject(currX, currY, currAngle, particles)
+#(currX, currY, currAngle, particles) = bumpObject(currX, currY, currAngle, particles)
 
-print("Coords: " + str(currX) + " " + str(currY) + " " + str(currAngle))
-
-
-'''
-motorAngles = interface.getMotorAngles(motors)
-x = motorAngles[0][0]
-y = motorAngles[1][0]
-print "Current pos is our ORIGIN: " + str(x) + "    " + str(y)
-move(31)
-motorAngles = interface.getMotorAngles(motors)
-currX = motorAngles[0][0] - x
-currY = motorAngles[1][0] - y
-print "CURRENT POS: " + str(currX) + "    " + str(currY)
-move(-5)
-motorAngles = interface.getMotorAngles(motors)
-currX = motorAngles[0][0] - x
-currY = motorAngles[1][0] - y
-print "CURRENT POS: " + str(currX) + "    " + str(currY)
-
+#print("Coords: " + str(currX) + " " + str(currY) + " " + str(currAngle))
 
 bumpWaypoints = [wA2, wB1, wB1b, wC1]
 # Disclaimer: MCL has to take into consideration the sonar measurements
@@ -819,6 +809,8 @@ for (x, y) in objectWaypoints:
 	continue
     found_object = 0
 
+    givenX = x
+    givenY = y
     # Calculate distance and angle
     distance = getDistanceToTravel(currX, currY, givenX, givenY)
     angle = (math.atan2(givenY-currY, givenX-currX)) - currAngle
@@ -839,21 +831,21 @@ for (x, y) in objectWaypoints:
     # not sure if currAngle or angle? what does rotate update?
     # If we are in waypoint wB1, we need to turn to 90 degrees.
     if (x, y) == wB1:
-        rotate(90 - currAngle)
-	currAngle = 90
+        rotate(math.radians(90) - currAngle)
+	  currAngle = math.radians(90)
 
     # only done in waypoints: wA2, wB1, wB1b, wC1
      
     if (x, y) in bumpWaypoints:
      
     	# MCL after movement
-    	particles.updateM(distance)
-    	particles.runMCL()
-    	(currX, currY, currAngle) = particles.updateCurrentValues()
+    	# particles.updateM(distance)
+    	# particles.runMCL()
+    	# (currX, currY, currAngle) = particles.updateCurrentValues()
     	#particle.draw()
     	# Find object continuously polls the bump sensor
-    	(newX, newY, newAngle) = bumpObject(currX, currY, currAngle)
-    
+    	(newX, newY, newAngle, particles) = bumpObject(currX, currY, currAngle, particles)
+      print("WE ARE CURRENTLY AT POSITION: " + str(newX) + " " + str(newY))
     	#If we found an object, we set the boolean to true; useful for zone B
     	# in case we have to take multiple measurements to find the bottle
     	if not(newX == currX and newY == currY and newAngle == currAngle):
@@ -862,6 +854,5 @@ for (x, y) in objectWaypoints:
     	currY = newY
     	currAngle = newAngle
 
-    
-    '''
-#interface.terminate()
+
+interface.terminate()
