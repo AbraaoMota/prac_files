@@ -766,6 +766,7 @@ def findObject(angle):
 
 def bumpObject(currX, currY, currAngle, particles):
     # If a bottle is more than 40 away, go to next waypoint and look again.
+    # CONTROVERSIAL!! 
     DIST_CONST    = 60
     left_touched  =  0
     right_touched =  0
@@ -868,20 +869,20 @@ for (x, y) in objectWaypoints:
 
     # I'm against MCL after rotation - to discuss.
     # MCL after rotation
-    particles.updateR(angle)
-    particles.runMCL()
-    (currX, currY, currAngle) = particles.updateCurrentValues()
+    #particles.updateR(angle)
+    #particles.runMCL()
+    #(currX, currY, currAngle) = particles.updateCurrentValues()
     #particles.draw()
 
     # Move to waypoint
     move(distance)
-    #currX = givenX
-    #currY = givenY
+    currX = givenX
+    currY = givenY
     #MCL
-    particles.updateM(distance)
-    particles.runMCL()
-    (currX, currY, currAngle) = particles.updateCurrentValues()
-    particles.draw()
+    #particles.updateM(distance)
+    #particles.runMCL()
+    #(currX, currY, currAngle) = particles.updateCurrentValues()
+    #particles.draw()
 
     # not sure if currAngle or angle? what does rotate update?
     # If we are in waypoint wB1, we need to turn to 90 degrees.
