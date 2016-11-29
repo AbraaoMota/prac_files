@@ -188,9 +188,9 @@ class SignatureContainer():
         return ls
 
 
-def spin_sonar(ls, count,  motor_rot):
+def spin_sonar(ls, count,  motor_rot, real_angle):
     init_motor_angle = interface.getMotorAngles(sonar_motor)
-    real_angle       = 0
+    # real_angle       = 0
 
     # spin the motor
     interface.increaseMotorAngleReferences(sonar_motor, [motor_rot])
@@ -199,6 +199,7 @@ def spin_sonar(ls, count,  motor_rot):
         reading      = interface.getSensorValue(sonarPort)
         # record measurements in the signature
         real_angle   = interface.getMotorAngles(sonar_motor)[0][0] - init_motor_angle[0][0]
+        print("We are calculating angle to be: " + str(interface.getMotorAngles(sonar_motor)[0][0]) + " minus " + str(init_motor_angle[0][0])  +  " to give: "  + str(interface.getMotorAngles(sonar_motor)[0][0] - init_motor_angle[0][0]))
         real_degrees = int(math.degrees(real_angle))
 
         print("degree bucket is: " + str(real_degrees))
@@ -215,11 +216,12 @@ def spin_sonar(ls, count,  motor_rot):
 def characterize_location(ls):
     MOTOR_ROTATION = math.pi
     count          = [0] * 37
+    real_angle     = 0
 
     # spin the motor
-    (count, ls.sig) = spin_sonar(ls, count, MOTOR_ROTATION)
+    (count, ls.sig) = spin_sonar(ls, count, MOTOR_ROTATION, real_angle)
     # unwind the cable
-    (count, ls.sig) = spin_sonar(ls, count, -MOTOR_ROTATION)
+    (count, ls.sig) = spin_sonar(ls, count, -MOTOR_ROTATION, real_angle)
 
     # Print the signature
     for i in range(0, len(ls.sig)):
@@ -291,7 +293,7 @@ def recognize_location():
 
 def find_bottle():
     ACCURATE_THRESHOLD = 160
-    MEASURABLE_DIFF    = 10
+    MEASURABLE_DIFF    = 20
 
     ls_bottle = LocationSignature()
     characterize_location(ls_bottle)
@@ -320,6 +322,7 @@ def find_bottle():
     print("BOTTLE ANGLE IS "       + str(bottle_angle) + 
           ", NORMALISED ANGLE IS " + str(normalised_angle))
 
+    # Don't change to radians, done below
     angle_to_turn = 90 - normalised_angle
 
     # answer is in degrees
@@ -443,7 +446,7 @@ def distanceToRobotRadians(distance):
 def rotate(angle):
     # Multiply the angle by a constant to normalise rotation due 
     # to decreased rotation accuracy
-    ROTATION_CONST = 2
+    ROTATION_CONST = 1
     angle *= ROTATION_CONST
 
     _angle = normaliseAngle(angle)
@@ -806,7 +809,7 @@ for (x, y) in objectWaypoints:
     # If we're thinking about going to the second waypoint in B,
     # we check if we've already bumped the bottle in that zone
     if found_object == 1 and (x, y) == wB1b:
-	continue
+        continue
     found_object = 0
 
     givenX = x
@@ -827,32 +830,37 @@ for (x, y) in objectWaypoints:
     
     # Move to waypoint
     move(distance)
-    
+    currX = givenX
+    currY = givenY
+     
     # not sure if currAngle or angle? what does rotate update?
     # If we are in waypoint wB1, we need to turn to 90 degrees.
     if (x, y) == wB1:
         rotate(math.radians(90) - currAngle)
-	  currAngle = math.radians(90)
+        currAngle = math.radians(90)
 
     # only done in waypoints: wA2, wB1, wB1b, wC1
-     
-    if (x, y) in bumpWaypoints:
-     
-    	# MCL after movement
+
+
+     # V comments belong inside the loop
+     # MCL after movement
     	# particles.updateM(distance)
     	# particles.runMCL()
     	# (currX, currY, currAngle) = particles.updateCurrentValues()
     	#particle.draw()
-    	# Find object continuously polls the bump sensor
-    	(newX, newY, newAngle, particles) = bumpObject(currX, currY, currAngle, particles)
-      print("WE ARE CURRENTLY AT POSITION: " + str(newX) + " " + str(newY))
-    	#If we found an object, we set the boolean to true; useful for zone B
-    	# in case we have to take multiple measurements to find the bottle
-    	if not(newX == currX and newY == currY and newAngle == currAngle):
-	    found_object = 1
-    	currX = newX
-    	currY = newY
-    	currAngle = newAngle
+
+    if (x, y) in bumpWaypoints:
+     
+        # Find object continuously polls the bump sensor
+        (newX, newY, newAngle, particles) = bumpObject(currX, currY, currAngle, particles)
+        print("WE ARE CURRENTLY AT POSITION: " + str(newX) + " " + str(newY))
+        #If we found an object, we set the boolean to true; useful for zone B
+        # in case we have to take multiple measurements to find the bottle
+        if not(newX == currX and newY == currY and newAngle == currAngle):
+            found_object = 1
+            currX = newX
+            currY = newY
+            currAngle = newAngle
 
 
 interface.terminate()
